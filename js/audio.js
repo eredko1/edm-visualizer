@@ -53,21 +53,6 @@ class AudioEngine {
                     url: "https://tonejs.github.io/audio/drum-samples/CR78/hihat.mp3",
                     volume: -8,
                     onload: () => console.log("Hihat loaded")
-                }).connect(this.beatChannel),
-                clap: new Tone.Player({
-                    url: "https://tonejs.github.io/audio/drum-samples/CR78/clap.mp3",
-                    volume: -4,
-                    onload: () => console.log("Clap loaded")
-                }).connect(this.beatChannel),
-                tom: new Tone.Player({
-                    url: "https://tonejs.github.io/audio/drum-samples/CR78/tom.mp3",
-                    volume: -6,
-                    onload: () => console.log("Tom loaded")
-                }).connect(this.beatChannel),
-                cymbal: new Tone.Player({
-                    url: "https://tonejs.github.io/audio/drum-samples/CR78/cymbal.mp3",
-                    volume: -10,
-                    onload: () => console.log("Cymbal loaded")
                 }).connect(this.beatChannel)
             };
 

@@ -51,7 +51,9 @@ document.addEventListener('DOMContentLoaded', () => {
             visualizer = new Visualizer();
             
             // Connect audio engine to visualizer
-            audioEngine.mixer.connect(visualizer.analyser);
+            if (audioEngine.mixer && visualizer.analyser) {
+                audioEngine.mixer.connect(visualizer.analyser);
+            }
             
             // Initialize controls after audio is ready
             initializeControls();
@@ -108,6 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Mouse interaction for sound generation
     document.addEventListener('mousemove', (e) => {
+        if (!audioEngine || !audioEngine.initialized) return;
+        
         const x = e.clientX / window.innerWidth;
         const y = e.clientY / window.innerHeight;
         
@@ -120,8 +124,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const velocity = 1 - y;
         
         // Update synth parameters based on mouse position
-        audioEngine.synth.volume.value = Tone.gainToDb(velocity);
-        audioEngine.effects.filter.frequency.value = 20 + (y * 20000); // 20Hz to 20kHz
+        if (audioEngine.currentSynth) {
+            audioEngine.currentSynth.volume.value = Tone.gainToDb(velocity);
+        }
+        if (audioEngine.effects && audioEngine.effects.filter) {
+            audioEngine.effects.filter.frequency.value = 20 + (y * 20000); // 20Hz to 20kHz
+        }
         
         // Trigger note with mouse position
         if (e.buttons === 1) { // Left mouse button
@@ -131,6 +139,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Touch interaction for mobile devices
     document.addEventListener('touchmove', (e) => {
+        if (!audioEngine || !audioEngine.initialized) return;
+        
         e.preventDefault();
         const touch = e.touches[0];
         const x = touch.clientX / window.innerWidth;
@@ -145,8 +155,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const velocity = 1 - y;
         
         // Update synth parameters based on touch position
-        audioEngine.synth.volume.value = Tone.gainToDb(velocity);
-        audioEngine.effects.filter.frequency.value = 20 + (y * 20000);
+        if (audioEngine.currentSynth) {
+            audioEngine.currentSynth.volume.value = Tone.gainToDb(velocity);
+        }
+        if (audioEngine.effects && audioEngine.effects.filter) {
+            audioEngine.effects.filter.frequency.value = 20 + (y * 20000);
+        }
         
         // Trigger note on touch
         audioEngine.playNote(note);
@@ -154,16 +168,22 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Stop notes when mouse/touch is released
     document.addEventListener('mouseup', () => {
-        audioEngine.stopNote();
+        if (audioEngine && audioEngine.initialized) {
+            audioEngine.stopNote();
+        }
     });
     
     document.addEventListener('touchend', () => {
-        audioEngine.stopNote();
+        if (audioEngine && audioEngine.initialized) {
+            audioEngine.stopNote();
+        }
     });
     
     // Handle window resize
     window.addEventListener('resize', () => {
-        visualizer.resizeCanvas();
+        if (visualizer) {
+            visualizer.resizeCanvas();
+        }
     });
 
     // Start with first pattern
