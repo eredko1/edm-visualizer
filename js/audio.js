@@ -1,16 +1,17 @@
 class AudioEngine {
     constructor() {
+        this.initialized = false;
         this.initializeAudio();
-        this.initializeEffects();
-        this.initializeSynths();
-        this.initializeBeatSequencer();
-        this.initializeAutoGenerator();
     }
 
     async initializeAudio() {
         try {
-            // Wait for user interaction before starting audio
+            // Create audio context with better mobile compatibility
             await Tone.start();
+            Tone.setContext(new Tone.Context({
+                latencyHint: 'interactive',
+                sampleRate: 44100
+            }));
             
             // Create master volume and mixer
             this.masterVolume = new Tone.Volume(-10).toDestination();
@@ -53,17 +54,29 @@ class AudioEngine {
             // Load all samples
             await Promise.all(Object.values(this.drums).map(drum => drum.load()));
             console.log("All samples loaded successfully");
+
+            // Initialize effects after samples are loaded
+            this.initializeEffects();
+            this.initializeSynths();
+            this.initializeBeatSequencer();
+            this.initializeAutoGenerator();
+            
+            this.initialized = true;
+            console.log("Audio engine initialized successfully");
         } catch (error) {
             console.error("Error initializing audio:", error);
+            // Retry initialization after user interaction
+            document.addEventListener('click', () => this.initializeAudio(), { once: true });
         }
     }
 
     initializeEffects() {
-        // Create effects chain
+        // Create effects chain with better mobile performance
         this.effects = {
             reverb: new Tone.Reverb({
                 decay: 2.5,
-                wet: 0.3
+                wet: 0.3,
+                preDelay: 0.1
             }).connect(this.effectsChannel),
             delay: new Tone.FeedbackDelay({
                 delayTime: 0.25,
@@ -72,35 +85,40 @@ class AudioEngine {
             }).connect(this.effectsChannel),
             distortion: new Tone.Distortion({
                 distortion: 0.4,
-                wet: 0.1
+                wet: 0.1,
+                oversample: '2x'
             }).connect(this.effectsChannel),
             filter: new Tone.Filter({
                 frequency: 1000,
-                type: "lowpass"
+                type: "lowpass",
+                rolloff: -12
             }).connect(this.effectsChannel)
         };
     }
 
     initializeSynths() {
-        // Create different synth types
+        // Create different synth types with better mobile performance
         this.synths = {
             basic: new Tone.PolySynth(Tone.Synth, {
                 oscillator: {
-                    type: "sine"
+                    type: "sine",
+                    phase: 0
                 },
                 envelope: {
                     attack: 0.1,
                     decay: 0.2,
                     sustain: 0.5,
                     release: 0.8
-                }
+                },
+                maxPolyphony: 8
             }).connect(this.synthChannel),
             
             fm: new Tone.PolySynth(Tone.FMSynth, {
                 harmonicity: 3,
                 modulationIndex: 10,
                 oscillator: {
-                    type: "sine"
+                    type: "sine",
+                    phase: 0
                 },
                 envelope: {
                     attack: 0.1,
@@ -109,21 +127,24 @@ class AudioEngine {
                     release: 0.8
                 },
                 modulation: {
-                    type: "square"
+                    type: "square",
+                    phase: 0
                 },
                 modulationEnvelope: {
                     attack: 0.5,
                     decay: 0.1,
                     sustain: 0.2,
                     release: 0.1
-                }
+                },
+                maxPolyphony: 8
             }).connect(this.synthChannel),
             
             am: new Tone.PolySynth(Tone.AMSynth, {
                 harmonicity: 3,
                 detune: 0,
                 oscillator: {
-                    type: "sine"
+                    type: "sine",
+                    phase: 0
                 },
                 envelope: {
                     attack: 0.1,
@@ -132,28 +153,32 @@ class AudioEngine {
                     release: 0.8
                 },
                 modulation: {
-                    type: "square"
+                    type: "square",
+                    phase: 0
                 },
                 modulationEnvelope: {
                     attack: 0.5,
                     decay: 0.1,
                     sustain: 0.2,
                     release: 0.1
-                }
+                },
+                maxPolyphony: 8
             }).connect(this.synthChannel),
             
             membrane: new Tone.PolySynth(Tone.MembraneSynth, {
                 pitchDecay: 0.05,
                 octaves: 2,
                 oscillator: {
-                    type: "sine"
+                    type: "sine",
+                    phase: 0
                 },
                 envelope: {
                     attack: 0.01,
                     decay: 0.2,
                     sustain: 0.2,
                     release: 1
-                }
+                },
+                maxPolyphony: 8
             }).connect(this.synthChannel)
         };
 
@@ -361,20 +386,38 @@ class AudioEngine {
     }
 
     playNote(note) {
-        this.currentSynth.triggerAttackRelease(note, "8n");
+        if (!this.initialized) {
+            console.warn("Audio engine not initialized yet");
+            return;
+        }
+        try {
+            this.currentSynth.triggerAttackRelease(note, "8n");
+        } catch (error) {
+            console.error("Error playing note:", error);
+        }
     }
 
     stopNote() {
-        this.currentSynth.releaseAll();
+        if (!this.initialized) return;
+        try {
+            this.currentSynth.releaseAll();
+        } catch (error) {
+            console.error("Error stopping note:", error);
+        }
     }
 
     toggleBeat() {
-        if (this.sequencer.state === "started") {
-            this.sequencer.stop();
-            Tone.Transport.stop();
-        } else {
-            this.sequencer.start(0);
-            Tone.Transport.start();
+        if (!this.initialized) return;
+        try {
+            if (this.sequencer.state === "started") {
+                this.sequencer.stop();
+                Tone.Transport.stop();
+            } else {
+                this.sequencer.start(0);
+                Tone.Transport.start();
+            }
+        } catch (error) {
+            console.error("Error toggling beat:", error);
         }
     }
 
@@ -415,6 +458,13 @@ class AudioEngine {
 
 // Initialize audio context on user interaction
 document.addEventListener('click', () => {
+    if (Tone.context.state !== 'running') {
+        Tone.start();
+    }
+}, { once: true });
+
+// Add touch event listener for mobile devices
+document.addEventListener('touchstart', () => {
     if (Tone.context.state !== 'running') {
         Tone.start();
     }

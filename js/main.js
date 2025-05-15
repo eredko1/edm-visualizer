@@ -1,59 +1,125 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize Tone.js
-    Tone.start();
+    let audioEngine = null;
+    let visualizer = null;
     
-    // Initialize controls
-    initializeControls();
-    
-    // Initialize beat sequencer
-    initializeBeatSequencer();
-    
-    // Initialize keyboard controls
-    initializeKeyboardControls();
-    
-    // Initialize help panel
-    initializeHelpPanel();
-    
-    // Initialize mobile controls
-    initializeMobileControls();
-    
-    // Initialize audio engine
-    const audioEngine = new AudioEngine();
-    
-    // Initialize visualizer
-    const visualizer = new Visualizer();
-    
-    // Connect audio engine to visualizer
-    audioEngine.synth.connect(visualizer.analyser);
-    
-    // Add auto-generator button
-    const autoGeneratorBtn = document.createElement('button');
-    autoGeneratorBtn.className = 'auto-generator-btn';
-    autoGeneratorBtn.innerHTML = '<i class="fas fa-magic"></i> Auto Generate';
-    document.body.appendChild(autoGeneratorBtn);
-    
-    autoGeneratorBtn.addEventListener('click', () => {
-        audioEngine.toggleAutoGenerator();
-        autoGeneratorBtn.classList.toggle('active');
-    });
+    // Initialize audio engine after user interaction
+    const initAudio = async () => {
+        try {
+            audioEngine = new AudioEngine();
+            visualizer = new Visualizer();
+            
+            // Connect audio engine to visualizer
+            audioEngine.synth.connect(visualizer.analyser);
+            
+            // Initialize controls after audio is ready
+            initializeControls();
+            initializeBeatSequencer();
+            initializeKeyboardControls();
+            initializeHelpPanel();
+            initializeMobileControls();
+            
+            // Add auto-generator button
+            const autoGeneratorBtn = document.createElement('button');
+            autoGeneratorBtn.className = 'auto-generator-btn';
+            autoGeneratorBtn.innerHTML = '<i class="fas fa-magic"></i> Auto Generate';
+            document.body.appendChild(autoGeneratorBtn);
+            
+            autoGeneratorBtn.addEventListener('click', () => {
+                if (audioEngine) {
+                    audioEngine.toggleAutoGenerator();
+                    autoGeneratorBtn.classList.toggle('active');
+                }
+            });
 
-    // Add minimize all button
-    const minimizeAllBtn = document.createElement('button');
-    minimizeAllBtn.className = 'minimize-all-btn';
-    minimizeAllBtn.innerHTML = '<i class="fas fa-compress"></i>';
-    document.body.appendChild(minimizeAllBtn);
-    
-    minimizeAllBtn.addEventListener('click', () => {
-        const controlsPanel = document.querySelector('.controls-panel');
-        const mobileBeatPad = document.querySelector('.mobile-beat-pad');
-        const helpContent = document.querySelector('.help-content');
-        
-        controlsPanel.classList.toggle('minimized');
-        mobileBeatPad.classList.toggle('minimized');
-        helpContent.classList.remove('visible');
-        
-        minimizeAllBtn.classList.toggle('active');
-    });
+            // Add minimize all button
+            const minimizeAllBtn = document.createElement('button');
+            minimizeAllBtn.className = 'minimize-all-btn';
+            minimizeAllBtn.innerHTML = '<i class="fas fa-compress"></i>';
+            document.body.appendChild(minimizeAllBtn);
+            
+            minimizeAllBtn.addEventListener('click', () => {
+                const controlsPanel = document.querySelector('.controls-panel');
+                const mobileBeatPad = document.querySelector('.mobile-beat-pad');
+                const helpContent = document.querySelector('.help-content');
+                
+                controlsPanel.classList.toggle('minimized');
+                mobileBeatPad.classList.toggle('minimized');
+                helpContent.classList.remove('visible');
+                
+                minimizeAllBtn.classList.toggle('active');
+            });
+
+            // Add visualization presets
+            const vizPresets = [
+                { name: 'Pulse', type: 'particles', color: 'neon', speed: 1.2 },
+                { name: 'Wave', type: 'waves', color: 'rainbow', speed: 0.8 },
+                { name: 'Matrix', type: 'matrix', color: 'monochrome', speed: 1 },
+                { name: 'Vortex', type: 'vortex', color: 'pastel', speed: 1.5 }
+            ];
+
+            const vizPresetBtn = document.createElement('button');
+            vizPresetBtn.className = 'viz-preset-btn';
+            vizPresetBtn.innerHTML = '<i class="fas fa-palette"></i> Visuals';
+            document.body.appendChild(vizPresetBtn);
+
+            const vizPresetMenu = document.createElement('div');
+            vizPresetMenu.className = 'viz-preset-menu';
+            vizPresetBtn.appendChild(vizPresetMenu);
+
+            vizPresets.forEach(preset => {
+                const presetBtn = document.createElement('button');
+                presetBtn.className = 'preset-btn';
+                presetBtn.textContent = preset.name;
+                presetBtn.addEventListener('click', () => {
+                    if (visualizer) {
+                        visualizer.updateVisualizationType(preset.type);
+                        visualizer.updateColorScheme(preset.color);
+                        visualizer.updateVisualizationSpeed(preset.speed);
+                    }
+                });
+                vizPresetMenu.appendChild(presetBtn);
+            });
+
+            vizPresetBtn.addEventListener('click', () => {
+                vizPresetMenu.classList.toggle('visible');
+            });
+
+            // Close preset menu when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!vizPresetBtn.contains(e.target)) {
+                    vizPresetMenu.classList.remove('visible');
+                }
+            });
+
+            console.log("Audio and visualizer initialized successfully");
+        } catch (error) {
+            console.error("Error initializing audio:", error);
+        }
+    };
+
+    // Initialize on first user interaction
+    const initOnInteraction = () => {
+        initAudio();
+        document.removeEventListener('click', initOnInteraction);
+        document.removeEventListener('touchstart', initOnInteraction);
+    };
+
+    document.addEventListener('click', initOnInteraction, { once: true });
+    document.addEventListener('touchstart', initOnInteraction, { once: true });
+
+    // Add loading indicator
+    const loadingIndicator = document.createElement('div');
+    loadingIndicator.className = 'loading-indicator';
+    loadingIndicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+    document.body.appendChild(loadingIndicator);
+
+    // Remove loading indicator when audio is ready
+    const checkAudioReady = setInterval(() => {
+        if (audioEngine && audioEngine.initialized) {
+            loadingIndicator.remove();
+            clearInterval(checkAudioReady);
+        }
+    }, 100);
 
     // Mouse interaction for sound generation
     document.addEventListener('mousemove', (e) => {
@@ -617,4 +683,95 @@ style.textContent = `
         }
     }
 `;
-document.head.appendChild(style); 
+document.head.appendChild(style);
+
+// Add new styles for visualization presets
+const stylePresets = document.createElement('style');
+stylePresets.textContent = `
+    .viz-preset-btn {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 255, 136, 0.2);
+        border: 2px solid #00ff88;
+        color: #fff;
+        padding: 12px 20px;
+        border-radius: 25px;
+        font-size: 1.1em;
+        cursor: pointer;
+        transition: all 0.3s;
+        z-index: 1000;
+    }
+
+    .viz-preset-btn:hover {
+        background: rgba(0, 255, 136, 0.4);
+        transform: translateX(-50%) scale(1.05);
+    }
+
+    .viz-preset-menu {
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        padding: 10px;
+        display: none;
+        min-width: 150px;
+    }
+
+    .viz-preset-menu.visible {
+        display: block;
+    }
+
+    .preset-btn {
+        display: block;
+        width: 100%;
+        padding: 8px 15px;
+        margin: 5px 0;
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        color: #fff;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .preset-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .loading-indicator {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: #fff;
+        padding: 20px;
+        border-radius: 10px;
+        font-size: 1.2em;
+        z-index: 2000;
+    }
+
+    .loading-indicator i {
+        margin-right: 10px;
+    }
+
+    @media (max-width: 768px) {
+        .viz-preset-btn {
+            top: auto;
+            bottom: 20px;
+            font-size: 1em;
+            padding: 10px 15px;
+        }
+
+        .viz-preset-menu {
+            bottom: 100%;
+            top: auto;
+        }
+    }
+`;
+document.head.appendChild(stylePresets); 

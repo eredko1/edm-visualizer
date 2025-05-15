@@ -1,16 +1,16 @@
 class Visualizer {
     constructor() {
-        this.canvas = document.getElementById('visualizer');
+        this.canvas = document.createElement('canvas');
         this.ctx = this.canvas.getContext('2d');
         this.analyser = new Tone.Analyser('waveform', 1024);
-        this.resizeCanvas();
-        
         this.particles = [];
-        this.maxParticles = 500;
-        this.particleCount = 500;
+        this.maxParticles = 100;
+        this.particleCount = 50;
         this.vizType = 'particles';
         this.colorScheme = 'neon';
         this.vizSpeed = 1;
+        this.lastTime = 0;
+        this.frameCount = 0;
         
         this.colors = {
             neon: ['#00ff88', '#00ffff', '#ff00ff', '#ffff00'],
@@ -19,40 +19,50 @@ class Visualizer {
             rainbow: ['#ff0000', '#ff7f00', '#ffff00', '#00ff00', '#0000ff', '#4b0082', '#9400d3']
         };
         
+        this.resizeCanvas();
         this.initializeParticles();
         this.animate();
+        
+        window.addEventListener('resize', () => this.resizeCanvas());
     }
-
+    
     resizeCanvas() {
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
+        document.body.appendChild(this.canvas);
     }
-
+    
     initializeParticles() {
         this.particles = [];
-        for (let i = 0; i < this.particleCount; i++) {
+        for (let i = 0; i < this.maxParticles; i++) {
             this.particles.push({
                 x: Math.random() * this.canvas.width,
                 y: Math.random() * this.canvas.height,
-                size: Math.random() * 5 + 1,
-                speedX: (Math.random() - 0.5) * 2,
-                speedY: (Math.random() - 0.5) * 2,
+                size: Math.random() * 5 + 2,
+                speedX: (Math.random() - 0.5) * 4,
+                speedY: (Math.random() - 0.5) * 4,
                 color: this.getRandomColor()
             });
         }
     }
-
+    
     getRandomColor() {
         const scheme = this.colors[this.colorScheme];
         return scheme[Math.floor(Math.random() * scheme.length)];
     }
-
-    animate() {
+    
+    animate(currentTime = 0) {
+        requestAnimationFrame((time) => this.animate(time));
+        
+        // Limit frame rate for better performance
+        if (currentTime - this.lastTime < 1000 / 60) return;
+        this.lastTime = currentTime;
+        
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
         const waveform = this.analyser.getValue();
         
-        switch(this.vizType) {
+        switch (this.vizType) {
             case 'particles':
                 this.drawParticles(waveform);
                 break;
@@ -72,14 +82,12 @@ class Visualizer {
                 this.drawVortex(waveform);
                 break;
         }
-        
-        requestAnimationFrame(() => this.animate());
     }
-
+    
     drawParticles(waveform) {
-        this.particles.forEach((particle, i) => {
-            const waveValue = waveform[i % waveform.length];
-            
+        const average = waveform.reduce((a, b) => a + Math.abs(b), 0) / waveform.length;
+        
+        this.particles.forEach(particle => {
             particle.x += particle.speedX * this.vizSpeed;
             particle.y += particle.speedY * this.vizSpeed;
             
@@ -88,20 +96,25 @@ class Visualizer {
             if (particle.y < 0) particle.y = this.canvas.height;
             if (particle.y > this.canvas.height) particle.y = 0;
             
+            const size = particle.size * (1 + average * 2);
+            
             this.ctx.beginPath();
-            this.ctx.arc(particle.x, particle.y, particle.size * (1 + Math.abs(waveValue)), 0, Math.PI * 2);
+            this.ctx.arc(particle.x, particle.y, size, 0, Math.PI * 2);
             this.ctx.fillStyle = particle.color;
             this.ctx.fill();
         });
     }
-
+    
     drawWaves(waveform) {
+        const centerY = this.canvas.height / 2;
+        const sliceWidth = this.canvas.width / waveform.length;
+        
         this.ctx.beginPath();
-        this.ctx.moveTo(0, this.canvas.height / 2);
+        this.ctx.moveTo(0, centerY);
         
         for (let i = 0; i < waveform.length; i++) {
-            const x = (i / waveform.length) * this.canvas.width;
-            const y = (waveform[i] * this.canvas.height / 2) + this.canvas.height / 2;
+            const x = i * sliceWidth;
+            const y = centerY + waveform[i] * centerY * 0.8;
             
             if (i === 0) {
                 this.ctx.moveTo(x, y);
@@ -114,29 +127,29 @@ class Visualizer {
         this.ctx.lineWidth = 2;
         this.ctx.stroke();
     }
-
+    
     drawSpectrum(waveform) {
         const barWidth = this.canvas.width / waveform.length;
         
-        waveform.forEach((value, i) => {
+        for (let i = 0; i < waveform.length; i++) {
             const x = i * barWidth;
-            const height = Math.abs(value) * this.canvas.height;
-            const y = this.canvas.height - height;
+            const height = Math.abs(waveform[i]) * this.canvas.height;
             
             this.ctx.fillStyle = this.getRandomColor();
-            this.ctx.fillRect(x, y, barWidth - 1, height);
-        });
+            this.ctx.fillRect(x, this.canvas.height - height, barWidth, height);
+        }
     }
-
+    
     drawCircular(waveform) {
         const centerX = this.canvas.width / 2;
         const centerY = this.canvas.height / 2;
         const radius = Math.min(centerX, centerY) * 0.8;
         
         this.ctx.beginPath();
-        waveform.forEach((value, i) => {
+        
+        for (let i = 0; i < waveform.length; i++) {
             const angle = (i / waveform.length) * Math.PI * 2;
-            const r = radius * (1 + value);
+            const r = radius * (1 + waveform[i] * 0.5);
             const x = centerX + Math.cos(angle) * r;
             const y = centerY + Math.sin(angle) * r;
             
@@ -145,35 +158,36 @@ class Visualizer {
             } else {
                 this.ctx.lineTo(x, y);
             }
-        });
+        }
         
         this.ctx.closePath();
         this.ctx.strokeStyle = this.getRandomColor();
         this.ctx.lineWidth = 2;
         this.ctx.stroke();
     }
-
+    
     drawMatrix(waveform) {
-        const cellSize = 20;
-        const cols = Math.floor(this.canvas.width / cellSize);
-        const rows = Math.floor(this.canvas.height / cellSize);
+        const cols = 20;
+        const rows = 10;
+        const cellWidth = this.canvas.width / cols;
+        const cellHeight = this.canvas.height / rows;
         
         for (let i = 0; i < cols; i++) {
             for (let j = 0; j < rows; j++) {
-                const value = waveform[(i + j) % waveform.length];
-                const size = cellSize * (1 + Math.abs(value));
+                const index = Math.floor((i * rows + j) / (cols * rows) * waveform.length);
+                const value = Math.abs(waveform[index]);
                 
-                this.ctx.fillStyle = this.getRandomColor();
+                this.ctx.fillStyle = `rgba(0, 255, 136, ${value})`;
                 this.ctx.fillRect(
-                    i * cellSize - size/2 + cellSize/2,
-                    j * cellSize - size/2 + cellSize/2,
-                    size,
-                    size
+                    i * cellWidth,
+                    j * cellHeight,
+                    cellWidth - 2,
+                    cellHeight - 2
                 );
             }
         }
     }
-
+    
     drawVortex(waveform) {
         const centerX = this.canvas.width / 2;
         const centerY = this.canvas.height / 2;
@@ -181,39 +195,34 @@ class Visualizer {
         
         for (let i = 0; i < waveform.length; i++) {
             const angle = (i / waveform.length) * Math.PI * 2;
-            const value = waveform[i];
-            const radius = maxRadius * (0.2 + Math.abs(value) * 0.8);
+            const radius = (i / waveform.length) * maxRadius;
+            const value = Math.abs(waveform[i]);
             
-            const x1 = centerX + Math.cos(angle) * radius;
-            const y1 = centerY + Math.sin(angle) * radius;
-            const x2 = centerX + Math.cos(angle + 0.1) * radius;
-            const y2 = centerY + Math.sin(angle + 0.1) * radius;
+            const x = centerX + Math.cos(angle + this.frameCount * 0.02) * radius;
+            const y = centerY + Math.sin(angle + this.frameCount * 0.02) * radius;
             
             this.ctx.beginPath();
-            this.ctx.moveTo(x1, y1);
-            this.ctx.lineTo(x2, y2);
-            this.ctx.strokeStyle = this.getRandomColor();
-            this.ctx.lineWidth = 2;
-            this.ctx.stroke();
+            this.ctx.arc(x, y, value * 5, 0, Math.PI * 2);
+            this.ctx.fillStyle = this.getRandomColor();
+            this.ctx.fill();
         }
+        
+        this.frameCount++;
     }
-
+    
     updateParticleCount(count) {
-        this.particleCount = count;
+        this.particleCount = Math.min(count, this.maxParticles);
         this.initializeParticles();
     }
-
+    
     updateVisualizationType(type) {
         this.vizType = type;
     }
-
+    
     updateColorScheme(scheme) {
         this.colorScheme = scheme;
-        this.particles.forEach(particle => {
-            particle.color = this.getRandomColor();
-        });
     }
-
+    
     updateVisualizationSpeed(speed) {
         this.vizSpeed = speed;
     }
