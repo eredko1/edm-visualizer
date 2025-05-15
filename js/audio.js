@@ -108,71 +108,44 @@ class AudioEngine {
 
             // Create players with proper URL handling
             this.drums = {};
-            for (const [name, url] of Object.entries(sampleUrls)) {
-                try {
-                    this.drums[name] = new Tone.Player({
-                        url: url,
-                        volume: name === 'kick' ? -6 : name === 'snare' ? -4 : -8,
-                        onload: () => console.log(`${name} loaded`),
-                        onerror: (error) => console.error(`Error loading ${name}:`, error)
-                    }).connect(this.beatChannel);
-                } catch (error) {
-                    console.error(`Error creating player for ${name}:`, error);
-                }
-            }
-
-            // Load all samples with timeout and retry mechanism
-            this.loadingState = 'waiting_for_samples';
-            console.log("Loading drum samples...");
-            let retryCount = 0;
-            const maxRetries = 3;
-            const timeoutDuration = this.isMobile ? 15000 : 10000; // Longer timeout for mobile
             
-            while (retryCount < maxRetries) {
-                try {
-                    const loadPromises = Object.entries(this.drums).map(async ([name, player]) => {
-                        try {
-                            await player.load();
-                            console.log(`${name} loaded successfully`);
-                        } catch (error) {
-                            console.error(`Error loading ${name}:`, error);
-                            throw error;
-                        }
-                    });
-
-                    await Promise.race([
-                        Promise.all(loadPromises),
-                        new Promise((_, reject) => 
-                            setTimeout(() => reject(new Error("Sample loading timeout")), timeoutDuration)
-                        )
-                    ]);
-                    console.log("All samples loaded successfully");
-                    break;
-                } catch (error) {
-                    retryCount++;
-                    console.warn(`Sample loading attempt ${retryCount} failed:`, error);
-                    
-                    // If we're on mobile and the error is network-related, wait longer
-                    if (this.isMobile && error.message.includes("timeout")) {
-                        await new Promise(resolve => setTimeout(resolve, 2000));
-                    } else {
-                        await new Promise(resolve => setTimeout(resolve, 1000));
+            // Load samples using Tone.js's built-in mechanism
+            try {
+                // First, load all samples into buffers
+                const buffers = await Tone.Buffer.fromUrls(Object.values(sampleUrls));
+                
+                // Then create players with the loaded buffers
+                Object.entries(sampleUrls).forEach(([name, url], index) => {
+                    try {
+                        this.drums[name] = new Tone.Player({
+                            buffer: buffers[index],
+                            volume: name === 'kick' ? -6 : name === 'snare' ? -4 : -8,
+                            onload: () => console.log(`${name} loaded`),
+                            onerror: (error) => console.error(`Error loading ${name}:`, error)
+                        }).connect(this.beatChannel);
+                    } catch (error) {
+                        console.error(`Error creating player for ${name}:`, error);
                     }
-                    
-                    if (retryCount === maxRetries) {
-                        // On mobile, try to load lower quality samples as fallback
-                        if (this.isMobile) {
-                            console.log("Attempting to load mobile-optimized samples...");
-                            try {
-                                await this.loadMobileFallbackSamples();
-                                break;
-                            } catch (fallbackError) {
-                                console.error("Fallback sample loading failed:", fallbackError);
-                                throw error;
-                            }
-                        } else {
-                            throw error;
-                        }
+                });
+                
+                console.log("All samples loaded successfully");
+            } catch (error) {
+                console.error("Error loading samples:", error);
+                
+                // Fallback to individual loading if batch loading fails
+                console.log("Attempting individual sample loading...");
+                
+                for (const [name, url] of Object.entries(sampleUrls)) {
+                    try {
+                        const buffer = await Tone.Buffer.fromUrl(url);
+                        this.drums[name] = new Tone.Player({
+                            buffer: buffer,
+                            volume: name === 'kick' ? -6 : name === 'snare' ? -4 : -8,
+                            onload: () => console.log(`${name} loaded`),
+                            onerror: (error) => console.error(`Error loading ${name}:`, error)
+                        }).connect(this.beatChannel);
+                    } catch (error) {
+                        console.error(`Error loading ${name}:`, error);
                     }
                 }
             }
@@ -591,21 +564,34 @@ class AudioEngine {
             hihat: "https://tonejs.github.io/audio/drum-samples/CR78/hihat.mp3"
         };
 
-        for (const [name, url] of Object.entries(mobileSamples)) {
-            try {
-                // Create a new player with direct URL
+        try {
+            // Try batch loading first
+            const buffers = await Tone.Buffer.fromUrls(Object.values(mobileSamples));
+            
+            Object.entries(mobileSamples).forEach(([name, url], index) => {
                 this.drums[name] = new Tone.Player({
-                    url: url,
+                    buffer: buffers[index],
                     volume: name === 'kick' ? -6 : name === 'snare' ? -4 : -8,
                     onload: () => console.log(`${name} loaded (mobile optimized)`),
                     onerror: (error) => console.error(`Error loading ${name}:`, error)
                 }).connect(this.beatChannel);
-
-                // Load the sample
-                await this.drums[name].load();
-            } catch (error) {
-                console.error(`Error loading mobile sample ${name}:`, error);
-                throw error;
+            });
+        } catch (error) {
+            console.error("Error in batch loading, trying individual samples:", error);
+            
+            // Fallback to individual loading
+            for (const [name, url] of Object.entries(mobileSamples)) {
+                try {
+                    const buffer = await Tone.Buffer.fromUrl(url);
+                    this.drums[name] = new Tone.Player({
+                        buffer: buffer,
+                        volume: name === 'kick' ? -6 : name === 'snare' ? -4 : -8,
+                        onload: () => console.log(`${name} loaded (mobile optimized)`),
+                        onerror: (error) => console.error(`Error loading ${name}:`, error)
+                    }).connect(this.beatChannel);
+                } catch (error) {
+                    console.error(`Error loading mobile sample ${name}:`, error);
+                }
             }
         }
     }
