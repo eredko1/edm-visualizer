@@ -1,28 +1,42 @@
 class AudioEngine {
     constructor() {
         this.initialized = false;
+        this.loadingState = 'initializing';
         this.initializeAudio();
     }
 
     async initializeAudio() {
         try {
-            // Create audio context with better mobile compatibility
+            console.log("Starting audio initialization...");
+            this.loadingState = 'starting_tone';
+            
+            // Start Tone.js with explicit user interaction
             await Tone.start();
+            console.log("Tone.js started successfully");
+            
+            this.loadingState = 'creating_context';
+            // Create audio context with better mobile compatibility
             Tone.setContext(new Tone.Context({
                 latencyHint: 'interactive',
                 sampleRate: 44100,
                 lookAhead: 0.1
             }));
+            console.log("Audio context created");
             
+            this.loadingState = 'creating_mixer';
             // Create master volume and mixer with better control
             this.masterVolume = new Tone.Volume(-6).toDestination();
             this.mixer = new Tone.Channel().connect(this.masterVolume);
+            console.log("Mixer created");
             
-            // Create channels for beats, synths, and effects with better organization
+            this.loadingState = 'creating_channels';
+            // Create channels for beats, synths, and effects
             this.beatChannel = new Tone.Channel(-3).connect(this.mixer);
             this.synthChannel = new Tone.Channel(-3).connect(this.mixer);
             this.effectsChannel = new Tone.Channel(-3).connect(this.mixer);
+            console.log("Channels created");
             
+            this.loadingState = 'loading_samples';
             // Initialize drum samples with better quality samples
             this.drums = {
                 kick: new Tone.Player({
@@ -57,20 +71,55 @@ class AudioEngine {
                 }).connect(this.beatChannel)
             };
 
-            // Load all samples
-            await Promise.all(Object.values(this.drums).map(drum => drum.load()));
+            // Load all samples with timeout
+            this.loadingState = 'waiting_for_samples';
+            console.log("Loading drum samples...");
+            await Promise.race([
+                Promise.all(Object.values(this.drums).map(drum => drum.load())),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error("Sample loading timeout")), 10000)
+                )
+            ]);
             console.log("All samples loaded successfully");
 
+            this.loadingState = 'initializing_effects';
             // Initialize effects after samples are loaded
             this.initializeEffects();
+            console.log("Effects initialized");
+
+            this.loadingState = 'initializing_synths';
             this.initializeSynths();
+            console.log("Synths initialized");
+
+            this.loadingState = 'initializing_sequencer';
             this.initializeBeatSequencer();
+            console.log("Beat sequencer initialized");
+
+            this.loadingState = 'initializing_autogen';
             this.initializeAutoGenerator();
+            console.log("Auto generator initialized");
             
             this.initialized = true;
+            this.loadingState = 'complete';
             console.log("Audio engine initialized successfully");
         } catch (error) {
             console.error("Error initializing audio:", error);
+            this.loadingState = 'error';
+            this.initialized = false;
+            
+            // Show error in loading indicator
+            const loadingIndicator = document.querySelector('.loading-indicator');
+            if (loadingIndicator) {
+                loadingIndicator.innerHTML = `
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Error: ${error.message}<br>
+                    State: ${this.loadingState}<br>
+                    Click to retry
+                `;
+                loadingIndicator.style.cursor = 'pointer';
+                loadingIndicator.onclick = () => this.initializeAudio();
+            }
+            
             // Retry initialization after user interaction
             document.addEventListener('click', () => this.initializeAudio(), { once: true });
             document.addEventListener('touchstart', () => this.initializeAudio(), { once: true });

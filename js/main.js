@@ -8,14 +8,43 @@ document.addEventListener('DOMContentLoaded', () => {
             // Create and initialize audio engine
             audioEngine = new AudioEngine();
             
+            // Update loading indicator with state
+            const updateLoadingState = () => {
+                const loadingIndicator = document.querySelector('.loading-indicator');
+                if (loadingIndicator && audioEngine) {
+                    loadingIndicator.innerHTML = `
+                        <i class="fas fa-spinner fa-spin"></i>
+                        Loading...<br>
+                        State: ${audioEngine.loadingState}
+                    `;
+                }
+            };
+
+            // Check loading state every 100ms
+            const loadingInterval = setInterval(updateLoadingState, 100);
+            
             // Wait for audio engine to be ready
-            await new Promise((resolve) => {
+            await new Promise((resolve, reject) => {
                 const checkReady = setInterval(() => {
-                    if (audioEngine && audioEngine.initialized) {
-                        clearInterval(checkReady);
-                        resolve();
+                    if (audioEngine) {
+                        if (audioEngine.initialized) {
+                            clearInterval(checkReady);
+                            clearInterval(loadingInterval);
+                            resolve();
+                        } else if (audioEngine.loadingState === 'error') {
+                            clearInterval(checkReady);
+                            clearInterval(loadingInterval);
+                            reject(new Error("Audio initialization failed"));
+                        }
                     }
                 }, 100);
+
+                // Timeout after 15 seconds
+                setTimeout(() => {
+                    clearInterval(checkReady);
+                    clearInterval(loadingInterval);
+                    reject(new Error("Audio initialization timeout"));
+                }, 15000);
             });
 
             // Create visualizer after audio is ready
@@ -44,7 +73,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // Show error message to user
             const loadingIndicator = document.querySelector('.loading-indicator');
             if (loadingIndicator) {
-                loadingIndicator.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error loading audio. Click to retry.';
+                loadingIndicator.innerHTML = `
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Error: ${error.message}<br>
+                    Click to retry
+                `;
                 loadingIndicator.style.cursor = 'pointer';
                 loadingIndicator.onclick = initAudio;
             }
@@ -56,10 +89,15 @@ document.addEventListener('DOMContentLoaded', () => {
         // Add loading indicator
         const loadingIndicator = document.createElement('div');
         loadingIndicator.className = 'loading-indicator';
-        loadingIndicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+        loadingIndicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Click to start...';
         document.body.appendChild(loadingIndicator);
 
-        initAudio();
+        // Add click handler to start initialization
+        loadingIndicator.onclick = () => {
+            loadingIndicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+            initAudio();
+        };
+
         document.removeEventListener('click', initOnInteraction);
         document.removeEventListener('touchstart', initOnInteraction);
     };
