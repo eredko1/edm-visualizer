@@ -102,46 +102,8 @@ class AudioEngine {
         }
     }
 
-    initializeEffects() {
-        // Create effects chain with better mobile performance
-        this.effects = {
-            reverb: new Tone.Reverb({
-                decay: 2.5,
-                wet: 0.3,
-                preDelay: 0.1
-            }).connect(this.effectsChannel),
-            delay: new Tone.FeedbackDelay({
-                delayTime: 0.25,
-                feedback: 0.4,
-                wet: 0.2
-            }).connect(this.effectsChannel),
-            distortion: new Tone.Distortion({
-                distortion: 0.4,
-                wet: 0.1,
-                oversample: '2x'
-            }).connect(this.effectsChannel),
-            filter: new Tone.Filter({
-                frequency: 1000,
-                type: "lowpass",
-                rolloff: -12
-            }).connect(this.effectsChannel),
-            phaser: new Tone.Phaser({
-                frequency: 15,
-                octaves: 5,
-                baseFrequency: 1000,
-                wet: 0.3
-            }).connect(this.effectsChannel),
-            chorus: new Tone.Chorus({
-                frequency: 1.5,
-                delayTime: 3.5,
-                depth: 0.7,
-                wet: 0.3
-            }).connect(this.effectsChannel)
-        };
-    }
-
     initializeSynths() {
-        // Create different synth types with better mobile performance
+        // Create basic synth with better mobile performance
         this.synths = {
             basic: new Tone.PolySynth(Tone.Synth, {
                 oscillator: {
@@ -159,6 +121,27 @@ class AudioEngine {
         };
 
         this.currentSynth = this.synths.basic;
+    }
+
+    initializeEffects() {
+        // Create effects chain with better mobile performance
+        this.effects = {
+            reverb: new Tone.Reverb({
+                decay: 2.5,
+                wet: 0.3,
+                preDelay: 0.1
+            }).connect(this.effectsChannel),
+            delay: new Tone.FeedbackDelay({
+                delayTime: 0.25,
+                feedback: 0.4,
+                wet: 0.2
+            }).connect(this.effectsChannel),
+            filter: new Tone.Filter({
+                frequency: 1000,
+                type: "lowpass",
+                rolloff: -12
+            }).connect(this.effectsChannel)
+        };
     }
 
     initializeBeatSequencer() {
@@ -362,7 +345,7 @@ class AudioEngine {
     }
 
     playNote(note) {
-        if (!this.initialized) {
+        if (!this.initialized || !this.currentSynth) {
             console.warn("Audio engine not initialized yet");
             return;
         }
@@ -374,7 +357,7 @@ class AudioEngine {
     }
 
     stopNote() {
-        if (!this.initialized) return;
+        if (!this.initialized || !this.currentSynth) return;
         try {
             this.currentSynth.releaseAll();
         } catch (error) {

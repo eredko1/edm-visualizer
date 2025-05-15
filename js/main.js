@@ -1,9 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
     let audioEngine = null;
     let visualizer = null;
+    let isInitializing = false;
     
     // Initialize audio engine after user interaction
     const initAudio = async () => {
+        if (isInitializing) return;
+        isInitializing = true;
+        
         try {
             // Create and initialize audio engine
             audioEngine = new AudioEngine();
@@ -63,6 +67,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadingIndicator.style.cursor = 'pointer';
                 loadingIndicator.onclick = initAudio;
             }
+        } finally {
+            isInitializing = false;
         }
     };
 
@@ -103,15 +109,19 @@ document.addEventListener('DOMContentLoaded', () => {
         // Map mouse Y position to velocity (0-1)
         const velocity = 1 - y;
         
-        // Update synth parameters based on mouse position
-        audioEngine.currentSynth.volume.value = Tone.gainToDb(velocity);
-        if (audioEngine.effects?.filter) {
-            audioEngine.effects.filter.frequency.value = 20 + (y * 20000); // 20Hz to 20kHz
-        }
-        
-        // Trigger note with mouse position
-        if (e.buttons === 1) { // Left mouse button
-            audioEngine.playNote(note);
+        try {
+            // Update synth parameters based on mouse position
+            audioEngine.currentSynth.volume.value = Tone.gainToDb(velocity);
+            if (audioEngine.effects?.filter) {
+                audioEngine.effects.filter.frequency.value = 20 + (y * 20000); // 20Hz to 20kHz
+            }
+            
+            // Trigger note with mouse position
+            if (e.buttons === 1) { // Left mouse button
+                audioEngine.playNote(note);
+            }
+        } catch (error) {
+            console.error("Error in mousemove handler:", error);
         }
     });
     
@@ -132,26 +142,38 @@ document.addEventListener('DOMContentLoaded', () => {
         // Map touch Y position to velocity (0-1)
         const velocity = 1 - y;
         
-        // Update synth parameters based on touch position
-        audioEngine.currentSynth.volume.value = Tone.gainToDb(velocity);
-        if (audioEngine.effects?.filter) {
-            audioEngine.effects.filter.frequency.value = 20 + (y * 20000);
+        try {
+            // Update synth parameters based on touch position
+            audioEngine.currentSynth.volume.value = Tone.gainToDb(velocity);
+            if (audioEngine.effects?.filter) {
+                audioEngine.effects.filter.frequency.value = 20 + (y * 20000);
+            }
+            
+            // Trigger note on touch
+            audioEngine.playNote(note);
+        } catch (error) {
+            console.error("Error in touchmove handler:", error);
         }
-        
-        // Trigger note on touch
-        audioEngine.playNote(note);
     }, { passive: false });
     
     // Stop notes when mouse/touch is released
     document.addEventListener('mouseup', () => {
         if (audioEngine?.initialized && audioEngine?.currentSynth) {
-            audioEngine.stopNote();
+            try {
+                audioEngine.stopNote();
+            } catch (error) {
+                console.error("Error in mouseup handler:", error);
+            }
         }
     });
     
     document.addEventListener('touchend', () => {
         if (audioEngine?.initialized && audioEngine?.currentSynth) {
-            audioEngine.stopNote();
+            try {
+                audioEngine.stopNote();
+            } catch (error) {
+                console.error("Error in touchend handler:", error);
+            }
         }
     });
     
