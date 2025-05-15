@@ -3,180 +3,137 @@ document.addEventListener('DOMContentLoaded', () => {
     let visualizer = null;
     let isInitializing = false;
     
-    // Initialize audio engine after user interaction
-    const initAudio = async () => {
+    async function initAudio() {
         if (isInitializing) return;
         isInitializing = true;
         
         try {
-            // Create and initialize audio engine
             audioEngine = new AudioEngine();
-            
-            // Update loading indicator with state
-            const updateLoadingState = () => {
-                const loadingIndicator = document.querySelector('.loading-indicator');
-                if (loadingIndicator && audioEngine) {
-                    loadingIndicator.innerHTML = `
-                        <i class="fas fa-spinner fa-spin"></i>
-                        Loading...<br>
-                        State: ${audioEngine.loadingState}
-                    `;
-                }
-            };
-
-            // Check loading state every 100ms
-            const loadingInterval = setInterval(updateLoadingState, 100);
-            
-            // Initialize audio engine
             await audioEngine.initializeAudio();
-            clearInterval(loadingInterval);
-
-            // Create visualizer after audio is ready
+            
+            // Initialize visualizer after audio engine is ready
             visualizer = new Visualizer();
+            await visualizer.initialize();
             
             // Connect audio engine to visualizer
-            if (audioEngine.mixer && visualizer.analyser) {
-                audioEngine.mixer.connect(visualizer.analyser);
-            }
-            
-            // Initialize controls after audio is ready
-            initializeControls();
-            initializeBeatSequencer();
-            initializeKeyboardControls();
-            initializeHelpPanel();
-            initializeMobileControls();
-            initializeDJControls();
+            audioEngine.mixer.connect(visualizer.analyser);
             
             // Remove loading indicator
-            const loadingIndicator = document.querySelector('.loading-indicator');
+            const loadingIndicator = document.getElementById('loading-indicator');
             if (loadingIndicator) {
                 loadingIndicator.remove();
             }
-
-            console.log("Audio and visualizer initialized successfully");
+            
+            // Enable controls
+            document.getElementById('controls').style.display = 'block';
         } catch (error) {
-            console.error("Error initializing audio:", error);
-            // Show error message to user
-            const loadingIndicator = document.querySelector('.loading-indicator');
+            console.error('Error initializing audio:', error);
+            const loadingIndicator = document.getElementById('loading-indicator');
             if (loadingIndicator) {
                 loadingIndicator.innerHTML = `
-                    <i class="fas fa-exclamation-triangle"></i>
-                    Error: ${error.message}<br>
-                    Click to retry
+                    <div class="error-message">
+                        Error initializing audio: ${error.message}
+                        <button onclick="retryInitialization()">Retry</button>
+                    </div>
                 `;
-                loadingIndicator.style.cursor = 'pointer';
-                loadingIndicator.onclick = initAudio;
             }
         } finally {
             isInitializing = false;
         }
-    };
+    }
 
-    // Initialize on first user interaction
-    const initOnInteraction = () => {
-        // Add loading indicator
-        const loadingIndicator = document.createElement('div');
-        loadingIndicator.className = 'loading-indicator';
-        loadingIndicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Click to start...';
-        document.body.appendChild(loadingIndicator);
+    function retryInitialization() {
+        const loadingIndicator = document.getElementById('loading-indicator');
+        if (loadingIndicator) {
+            loadingIndicator.innerHTML = '<div class="loading">Initializing audio...</div>';
+        }
+        initAudio();
+    }
 
-        // Add click handler to start initialization
-        loadingIndicator.onclick = () => {
-            loadingIndicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+    // Initialize on user interaction
+    function initOnInteraction() {
+        if (!audioEngine || !audioEngine.initialized) {
             initAudio();
-        };
+        }
+    }
 
-        document.removeEventListener('click', initOnInteraction);
-        document.removeEventListener('touchstart', initOnInteraction);
-    };
+    // Add event listeners for user interaction
+    document.addEventListener('click', initOnInteraction);
+    document.addEventListener('touchstart', initOnInteraction);
 
-    // Add click and touch listeners for initialization
-    document.addEventListener('click', initOnInteraction, { once: true });
-    document.addEventListener('touchstart', initOnInteraction, { once: true });
-
-    // Mouse interaction for sound generation
-    document.addEventListener('mousemove', (e) => {
-        if (!audioEngine?.initialized || !audioEngine?.currentSynth) return;
-        
-        const x = e.clientX / window.innerWidth;
-        const y = e.clientY / window.innerHeight;
-        
-        // Map mouse position to musical notes
-        const notes = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4'];
-        const noteIndex = Math.floor(x * notes.length);
-        const note = notes[noteIndex];
-        
-        // Map mouse Y position to velocity (0-1)
-        const velocity = 1 - y;
+    // Mouse and touch event handlers with error handling
+    function handleMouseMove(e) {
+        if (!audioEngine?.initialized || !audioEngine?.synth) return;
         
         try {
-            // Update synth parameters based on mouse position
-            audioEngine.currentSynth.volume.value = Tone.gainToDb(velocity);
-            if (audioEngine.effects?.filter) {
-                audioEngine.effects.filter.frequency.value = 20 + (y * 20000); // 20Hz to 20kHz
-            }
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
             
-            // Trigger note with mouse position
-            if (e.buttons === 1) { // Left mouse button
-                audioEngine.playNote(note);
-            }
+            // Map mouse position to musical parameters
+            const note = Math.floor((x / canvas.width) * 24) + 48; // C3 to C5
+            const velocity = 1 - (y / canvas.height);
+            
+            // Update synth parameters
+            audioEngine.synth.volume.value = Tone.gainToDb(velocity);
+            audioEngine.synth.filter.frequency.value = Math.pow(2, note / 12) * 440;
+            
+            // Trigger note
+            audioEngine.playNote(note, velocity);
         } catch (error) {
-            console.error("Error in mousemove handler:", error);
+            console.error('Error in mouse move handler:', error);
         }
-    });
-    
-    // Touch interaction for mobile devices
-    document.addEventListener('touchmove', (e) => {
-        if (!audioEngine?.initialized || !audioEngine?.currentSynth) return;
-        
-        e.preventDefault();
-        const touch = e.touches[0];
-        const x = touch.clientX / window.innerWidth;
-        const y = touch.clientY / window.innerHeight;
-        
-        // Map touch position to musical notes
-        const notes = ['C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4'];
-        const noteIndex = Math.floor(x * notes.length);
-        const note = notes[noteIndex];
-        
-        // Map touch Y position to velocity (0-1)
-        const velocity = 1 - y;
+    }
+
+    function handleTouchMove(e) {
+        if (!audioEngine?.initialized || !audioEngine?.synth) return;
         
         try {
-            // Update synth parameters based on touch position
-            audioEngine.currentSynth.volume.value = Tone.gainToDb(velocity);
-            if (audioEngine.effects?.filter) {
-                audioEngine.effects.filter.frequency.value = 20 + (y * 20000);
-            }
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
             
-            // Trigger note on touch
-            audioEngine.playNote(note);
+            // Map touch position to musical parameters
+            const note = Math.floor((x / canvas.width) * 24) + 48;
+            const velocity = 1 - (y / canvas.height);
+            
+            // Update synth parameters
+            audioEngine.synth.volume.value = Tone.gainToDb(velocity);
+            audioEngine.synth.filter.frequency.value = Math.pow(2, note / 12) * 440;
+            
+            // Trigger note
+            audioEngine.playNote(note, velocity);
         } catch (error) {
-            console.error("Error in touchmove handler:", error);
+            console.error('Error in touch move handler:', error);
         }
-    }, { passive: false });
-    
-    // Stop notes when mouse/touch is released
-    document.addEventListener('mouseup', () => {
-        if (audioEngine?.initialized && audioEngine?.currentSynth) {
-            try {
-                audioEngine.stopNote();
-            } catch (error) {
-                console.error("Error in mouseup handler:", error);
-            }
+    }
+
+    function handleMouseUp() {
+        if (!audioEngine?.initialized) return;
+        try {
+            audioEngine.stopNote();
+        } catch (error) {
+            console.error('Error in mouse up handler:', error);
         }
-    });
-    
-    document.addEventListener('touchend', () => {
-        if (audioEngine?.initialized && audioEngine?.currentSynth) {
-            try {
-                audioEngine.stopNote();
-            } catch (error) {
-                console.error("Error in touchend handler:", error);
-            }
+    }
+
+    function handleTouchEnd() {
+        if (!audioEngine?.initialized) return;
+        try {
+            audioEngine.stopNote();
+        } catch (error) {
+            console.error('Error in touch end handler:', error);
         }
-    });
-    
+    }
+
+    // Add event listeners with error handling
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('touchmove', handleTouchMove);
+    canvas.addEventListener('mouseup', handleMouseUp);
+    canvas.addEventListener('touchend', handleTouchEnd);
+
     // Handle window resize
     window.addEventListener('resize', () => {
         if (visualizer) {
