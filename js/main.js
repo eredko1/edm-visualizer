@@ -23,29 +23,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // Check loading state every 100ms
             const loadingInterval = setInterval(updateLoadingState, 100);
             
-            // Wait for audio engine to be ready
-            await new Promise((resolve, reject) => {
-                const checkReady = setInterval(() => {
-                    if (audioEngine) {
-                        if (audioEngine.initialized) {
-                            clearInterval(checkReady);
-                            clearInterval(loadingInterval);
-                            resolve();
-                        } else if (audioEngine.loadingState === 'error') {
-                            clearInterval(checkReady);
-                            clearInterval(loadingInterval);
-                            reject(new Error("Audio initialization failed"));
-                        }
-                    }
-                }, 100);
-
-                // Timeout after 15 seconds
-                setTimeout(() => {
-                    clearInterval(checkReady);
-                    clearInterval(loadingInterval);
-                    reject(new Error("Audio initialization timeout"));
-                }, 15000);
-            });
+            // Initialize audio engine
+            await audioEngine.initializeAudio();
+            clearInterval(loadingInterval);
 
             // Create visualizer after audio is ready
             visualizer = new Visualizer();
@@ -110,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Mouse interaction for sound generation
     document.addEventListener('mousemove', (e) => {
-        if (!audioEngine || !audioEngine.initialized) return;
+        if (!audioEngine || !audioEngine.initialized || !audioEngine.currentSynth) return;
         
         const x = e.clientX / window.innerWidth;
         const y = e.clientY / window.innerHeight;
@@ -124,9 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const velocity = 1 - y;
         
         // Update synth parameters based on mouse position
-        if (audioEngine.currentSynth) {
-            audioEngine.currentSynth.volume.value = Tone.gainToDb(velocity);
-        }
+        audioEngine.currentSynth.volume.value = Tone.gainToDb(velocity);
         if (audioEngine.effects && audioEngine.effects.filter) {
             audioEngine.effects.filter.frequency.value = 20 + (y * 20000); // 20Hz to 20kHz
         }
@@ -139,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Touch interaction for mobile devices
     document.addEventListener('touchmove', (e) => {
-        if (!audioEngine || !audioEngine.initialized) return;
+        if (!audioEngine || !audioEngine.initialized || !audioEngine.currentSynth) return;
         
         e.preventDefault();
         const touch = e.touches[0];
@@ -155,9 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const velocity = 1 - y;
         
         // Update synth parameters based on touch position
-        if (audioEngine.currentSynth) {
-            audioEngine.currentSynth.volume.value = Tone.gainToDb(velocity);
-        }
+        audioEngine.currentSynth.volume.value = Tone.gainToDb(velocity);
         if (audioEngine.effects && audioEngine.effects.filter) {
             audioEngine.effects.filter.frequency.value = 20 + (y * 20000);
         }
@@ -168,13 +144,13 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Stop notes when mouse/touch is released
     document.addEventListener('mouseup', () => {
-        if (audioEngine && audioEngine.initialized) {
+        if (audioEngine && audioEngine.initialized && audioEngine.currentSynth) {
             audioEngine.stopNote();
         }
     });
     
     document.addEventListener('touchend', () => {
-        if (audioEngine && audioEngine.initialized) {
+        if (audioEngine && audioEngine.initialized && audioEngine.currentSynth) {
             audioEngine.stopNote();
         }
     });

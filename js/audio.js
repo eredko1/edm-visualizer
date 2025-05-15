@@ -2,7 +2,12 @@ class AudioEngine {
     constructor() {
         this.initialized = false;
         this.loadingState = 'initializing';
-        this.initializeAudio();
+        this.context = null;
+        this.mixer = null;
+        this.synths = null;
+        this.effects = null;
+        this.drums = null;
+        this.currentSynth = null;
     }
 
     async initializeAudio() {
@@ -16,11 +21,12 @@ class AudioEngine {
             
             this.loadingState = 'creating_context';
             // Create audio context with better mobile compatibility
-            Tone.setContext(new Tone.Context({
+            this.context = new Tone.Context({
                 latencyHint: 'interactive',
                 sampleRate: 44100,
                 lookAhead: 0.1
-            }));
+            });
+            Tone.setContext(this.context);
             console.log("Audio context created");
             
             this.loadingState = 'creating_mixer';
@@ -91,23 +97,7 @@ class AudioEngine {
             console.error("Error initializing audio:", error);
             this.loadingState = 'error';
             this.initialized = false;
-            
-            // Show error in loading indicator
-            const loadingIndicator = document.querySelector('.loading-indicator');
-            if (loadingIndicator) {
-                loadingIndicator.innerHTML = `
-                    <i class="fas fa-exclamation-triangle"></i>
-                    Error: ${error.message}<br>
-                    State: ${this.loadingState}<br>
-                    Click to retry
-                `;
-                loadingIndicator.style.cursor = 'pointer';
-                loadingIndicator.onclick = () => this.initializeAudio();
-            }
-            
-            // Retry initialization after user interaction
-            document.addEventListener('click', () => this.initializeAudio(), { once: true });
-            document.addEventListener('touchstart', () => this.initializeAudio(), { once: true });
+            throw error;
         }
     }
 
