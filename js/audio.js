@@ -4,47 +4,58 @@ class AudioEngine {
         this.initializeEffects();
         this.initializeSynths();
         this.initializeBeatSequencer();
+        this.initializeAutoGenerator();
     }
 
     async initializeAudio() {
-        // Wait for user interaction before starting audio
-        await Tone.start();
-        
-        // Create master volume and mixer
-        this.masterVolume = new Tone.Volume(-10).toDestination();
-        this.mixer = new Tone.Channel().connect(this.masterVolume);
-        
-        // Create channels for beats, synths, and effects
-        this.beatChannel = new Tone.Channel().connect(this.mixer);
-        this.synthChannel = new Tone.Channel().connect(this.mixer);
-        this.effectsChannel = new Tone.Channel().connect(this.mixer);
-        
-        // Initialize drum samples
-        this.drums = {
-            kick: new Tone.Player({
-                url: "https://tonejs.github.io/audio/drum-samples/CR78/kick.mp3",
-                volume: -10
-            }).connect(this.beatChannel),
-            snare: new Tone.Player({
-                url: "https://tonejs.github.io/audio/drum-samples/CR78/snare.mp3",
-                volume: -8
-            }).connect(this.beatChannel),
-            hihat: new Tone.Player({
-                url: "https://tonejs.github.io/audio/drum-samples/CR78/hihat.mp3",
-                volume: -12
-            }).connect(this.beatChannel),
-            clap: new Tone.Player({
-                url: "https://tonejs.github.io/audio/drum-samples/CR78/clap.mp3",
-                volume: -8
-            }).connect(this.beatChannel),
-            tom: new Tone.Player({
-                url: "https://tonejs.github.io/audio/drum-samples/CR78/tom.mp3",
-                volume: -10
-            }).connect(this.beatChannel)
-        };
+        try {
+            // Wait for user interaction before starting audio
+            await Tone.start();
+            
+            // Create master volume and mixer
+            this.masterVolume = new Tone.Volume(-10).toDestination();
+            this.mixer = new Tone.Channel().connect(this.masterVolume);
+            
+            // Create channels for beats, synths, and effects
+            this.beatChannel = new Tone.Channel().connect(this.mixer);
+            this.synthChannel = new Tone.Channel().connect(this.mixer);
+            this.effectsChannel = new Tone.Channel().connect(this.mixer);
+            
+            // Initialize drum samples with better quality samples
+            this.drums = {
+                kick: new Tone.Player({
+                    url: "https://tonejs.github.io/audio/drum-samples/CR78/kick.mp3",
+                    volume: -10,
+                    onload: () => console.log("Kick loaded")
+                }).connect(this.beatChannel),
+                snare: new Tone.Player({
+                    url: "https://tonejs.github.io/audio/drum-samples/CR78/snare.mp3",
+                    volume: -8,
+                    onload: () => console.log("Snare loaded")
+                }).connect(this.beatChannel),
+                hihat: new Tone.Player({
+                    url: "https://tonejs.github.io/audio/drum-samples/CR78/hihat.mp3",
+                    volume: -12,
+                    onload: () => console.log("Hihat loaded")
+                }).connect(this.beatChannel),
+                clap: new Tone.Player({
+                    url: "https://tonejs.github.io/audio/drum-samples/CR78/clap.mp3",
+                    volume: -8,
+                    onload: () => console.log("Clap loaded")
+                }).connect(this.beatChannel),
+                tom: new Tone.Player({
+                    url: "https://tonejs.github.io/audio/drum-samples/CR78/tom.mp3",
+                    volume: -10,
+                    onload: () => console.log("Tom loaded")
+                }).connect(this.beatChannel)
+            };
 
-        // Load all samples
-        await Promise.all(Object.values(this.drums).map(drum => drum.load()));
+            // Load all samples
+            await Promise.all(Object.values(this.drums).map(drum => drum.load()));
+            console.log("All samples loaded successfully");
+        } catch (error) {
+            console.error("Error initializing audio:", error);
+        }
     }
 
     initializeEffects() {
@@ -288,6 +299,65 @@ class AudioEngine {
 
         // Set initial BPM
         Tone.Transport.bpm.value = this.bpm;
+    }
+
+    initializeAutoGenerator() {
+        this.autoGenerator = {
+            isActive: false,
+            currentChord: 0,
+            chordProgression: [
+                ['C3', 'E3', 'G3'],
+                ['F3', 'A3', 'C4'],
+                ['G3', 'B3', 'D4'],
+                ['A3', 'C4', 'E4']
+            ],
+            lastBeatTime: 0,
+            nextBeatTime: 0,
+            currentPattern: null
+        };
+
+        // Create auto-generator loop
+        this.autoLoop = new Tone.Loop((time) => {
+            if (!this.autoGenerator.isActive) return;
+
+            const now = Tone.now();
+            if (now >= this.autoGenerator.nextBeatTime) {
+                this.generateNextBeat(time);
+                this.autoGenerator.lastBeatTime = now;
+                this.autoGenerator.nextBeatTime = now + (60 / this.bpm);
+            }
+        }, "16n");
+    }
+
+    generateNextBeat(time) {
+        // Randomly choose a drum to play
+        const drums = Object.keys(this.drums);
+        const randomDrum = drums[Math.floor(Math.random() * drums.length)];
+        
+        // Play the drum with random velocity
+        const velocity = 0.5 + Math.random() * 0.5;
+        this.drums[randomDrum].volume.value = Tone.gainToDb(velocity);
+        this.drums[randomDrum].start(time);
+
+        // Occasionally play a chord
+        if (Math.random() < 0.3) {
+            const chord = this.autoGenerator.chordProgression[this.autoGenerator.currentChord];
+            chord.forEach(note => {
+                this.currentSynth.triggerAttackRelease(note, "8n", time, 0.5 + Math.random() * 0.5);
+            });
+            this.autoGenerator.currentChord = (this.autoGenerator.currentChord + 1) % this.autoGenerator.chordProgression.length;
+        }
+    }
+
+    toggleAutoGenerator() {
+        this.autoGenerator.isActive = !this.autoGenerator.isActive;
+        if (this.autoGenerator.isActive) {
+            this.autoLoop.start(0);
+            Tone.Transport.start();
+        } else {
+            this.autoLoop.stop();
+            Tone.Transport.stop();
+        }
     }
 
     playNote(note) {

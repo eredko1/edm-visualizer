@@ -26,6 +26,35 @@ document.addEventListener('DOMContentLoaded', () => {
     // Connect audio engine to visualizer
     audioEngine.synth.connect(visualizer.analyser);
     
+    // Add auto-generator button
+    const autoGeneratorBtn = document.createElement('button');
+    autoGeneratorBtn.className = 'auto-generator-btn';
+    autoGeneratorBtn.innerHTML = '<i class="fas fa-magic"></i> Auto Generate';
+    document.body.appendChild(autoGeneratorBtn);
+    
+    autoGeneratorBtn.addEventListener('click', () => {
+        audioEngine.toggleAutoGenerator();
+        autoGeneratorBtn.classList.toggle('active');
+    });
+
+    // Add minimize all button
+    const minimizeAllBtn = document.createElement('button');
+    minimizeAllBtn.className = 'minimize-all-btn';
+    minimizeAllBtn.innerHTML = '<i class="fas fa-compress"></i>';
+    document.body.appendChild(minimizeAllBtn);
+    
+    minimizeAllBtn.addEventListener('click', () => {
+        const controlsPanel = document.querySelector('.controls-panel');
+        const mobileBeatPad = document.querySelector('.mobile-beat-pad');
+        const helpContent = document.querySelector('.help-content');
+        
+        controlsPanel.classList.toggle('minimized');
+        mobileBeatPad.classList.toggle('minimized');
+        helpContent.classList.remove('visible');
+        
+        minimizeAllBtn.classList.toggle('active');
+    });
+
     // Mouse interaction for sound generation
     document.addEventListener('mousemove', (e) => {
         const x = e.clientX / window.innerWidth;
@@ -506,4 +535,86 @@ function initializeMobileControls() {
             }
         });
     }
-} 
+}
+
+// Add new styles for auto-generator and minimize buttons
+const style = document.createElement('style');
+style.textContent = `
+    .auto-generator-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        background: rgba(0, 255, 136, 0.2);
+        border: 2px solid #00ff88;
+        color: #fff;
+        padding: 12px 20px;
+        border-radius: 25px;
+        font-size: 1.1em;
+        cursor: pointer;
+        transition: all 0.3s;
+        z-index: 1000;
+    }
+
+    .auto-generator-btn:hover {
+        background: rgba(0, 255, 136, 0.4);
+        transform: scale(1.05);
+    }
+
+    .auto-generator-btn.active {
+        background: #00ff88;
+        color: #000;
+    }
+
+    .minimize-all-btn {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        color: #fff;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        font-size: 1.2em;
+        cursor: pointer;
+        transition: all 0.3s;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .minimize-all-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: scale(1.1);
+    }
+
+    .minimize-all-btn.active {
+        background: rgba(255, 255, 255, 0.3);
+    }
+
+    .controls-panel.minimized {
+        transform: translateY(calc(100% - 40px));
+    }
+
+    .mobile-beat-pad.minimized {
+        transform: translateY(calc(100% - 40px));
+    }
+
+    @media (max-width: 768px) {
+        .auto-generator-btn {
+            top: auto;
+            bottom: 20px;
+            left: 20px;
+            font-size: 1em;
+            padding: 10px 15px;
+        }
+
+        .minimize-all-btn {
+            top: auto;
+            bottom: 20px;
+            right: 20px;
+        }
+    }
+`;
+document.head.appendChild(style); 
