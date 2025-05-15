@@ -13,164 +13,54 @@ class AudioEngine {
         this.isAndroid = /Android/i.test(navigator.userAgent);
     }
 
-    async initializeAudio() {
+    async initialize() {
         try {
-            console.log("Starting audio initialization...");
-            this.loadingState = 'starting_tone';
-            
-            // Force unlock audio context on iOS/Android with better handling
-            if (this.isMobile) {
-                try {
-                    // Create and play a silent buffer with better mobile compatibility
-                    const audioContext = new (window.AudioContext || window.webkitAudioContext)({
-                        latencyHint: 'interactive',
-                        sampleRate: 44100
-                    });
-                    
-                    // Create a silent buffer
-                    const buffer = audioContext.createBuffer(1, 1, 22050);
-                    const source = audioContext.createBufferSource();
-                    source.buffer = buffer;
-                    source.connect(audioContext.destination);
-                    
-                    // Start the source and resume context
-                    source.start(0);
-                    if (audioContext.state !== 'running') {
-                        await audioContext.resume();
-                    }
-                    
-                    // Clean up
-                    source.disconnect();
-                    audioContext.close();
-                } catch (error) {
-                    console.warn("Silent buffer initialization failed:", error);
-                }
-            }
-            
-            // Start Tone.js with explicit user interaction and mobile optimization
-            await Tone.start();
-            console.log("Tone.js started successfully");
-            
-            this.loadingState = 'creating_context';
-            // Create audio context with better mobile compatibility
-            this.context = new Tone.Context({
-                latencyHint: this.isMobile ? 'playback' : 'interactive',
-                sampleRate: 44100,
-                lookAhead: this.isMobile ? 0.5 : 0.1
+            // Create audio context with mobile optimizations
+            this.context = new (window.AudioContext || window.webkitAudioContext)({
+                latencyHint: this.isMobile ? 'interactive' : 'playback',
+                sampleRate: this.isMobile ? 44100 : 48000
             });
-            Tone.setContext(this.context);
-            console.log("Audio context created");
+
+            // Initialize Tone.js with our context
+            await Tone.setContext(this.context);
             
-            // Set mobile-optimized settings
-            if (this.isMobile) {
-                Tone.context.latencyHint = 'playback';
-                Tone.context.lookAhead = 0.5;
-                Tone.Transport.lag = 0.2;
-                
-                // Additional iOS-specific optimizations
-                if (this.isIOS) {
-                    Tone.context.lookAhead = 0.8;
-                    Tone.Transport.lag = 0.3;
+            // Create silent buffer for mobile devices
+            const silentBuffer = this.context.createBuffer(1, 1, 22050);
+            const silentSource = this.context.createBufferSource();
+            silentSource.buffer = silentBuffer;
+            silentSource.connect(this.context.destination);
+            
+            // Start the context with a user gesture
+            const startAudio = async () => {
+                try {
+                    await this.context.resume();
+                    await Tone.start();
+                    silentSource.start();
+                    silentSource.stop(this.context.currentTime + 0.001);
+                    
+                    // Remove the event listeners after successful start
+                    document.removeEventListener('click', startAudio);
+                    document.removeEventListener('touchstart', startAudio);
+                    
+                    // Continue with initialization
+                    await this.loadDrumSamples();
+                    this.setupAudioNodes();
+                    this.setupSequencer();
+                    this.loadingState = 'ready';
+                    this.isInitialized = true;
+                } catch (error) {
+                    console.error('Error starting audio context:', error);
+                    this.loadingState = 'error';
                 }
-                
-                // Additional Android-specific optimizations
-                if (this.isAndroid) {
-                    Tone.context.lookAhead = 0.6;
-                    Tone.Transport.lag = 0.25;
-                }
-            }
-            
-            this.loadingState = 'creating_mixer';
-            // Create master volume and mixer with better control
-            this.masterVolume = new Tone.Volume(-6).toDestination();
-            this.mixer = new Tone.Channel().connect(this.masterVolume);
-            console.log("Mixer created");
-            
-            this.loadingState = 'creating_channels';
-            // Create channels for beats, synths, and effects
-            this.beatChannel = new Tone.Channel(-3).connect(this.mixer);
-            this.synthChannel = new Tone.Channel(-3).connect(this.mixer);
-            this.effectsChannel = new Tone.Channel(-3).connect(this.mixer);
-            console.log("Channels created");
-            
-            this.loadingState = 'initializing_synths';
-            // Initialize synths first
-            this.initializeSynths();
-            console.log("Synths initialized");
-            
-            this.loadingState = 'loading_samples';
-            // Initialize drum samples with better quality samples and mobile optimization
-            const sampleUrls = {
-                kick: "https://tonejs.github.io/audio/drum-samples/CR78/kick.mp3",
-                snare: "https://tonejs.github.io/audio/drum-samples/CR78/snare.mp3",
-                hihat: "https://tonejs.github.io/audio/drum-samples/CR78/hihat.mp3"
             };
 
-            // Create players with proper URL handling
-            this.drums = {};
+            // Add event listeners for user interaction
+            document.addEventListener('click', startAudio);
+            document.addEventListener('touchstart', startAudio);
             
-            // Load samples using Tone.js's built-in mechanism
-            try {
-                // First, load all samples into buffers
-                const buffers = await Tone.Buffer.fromUrls(Object.values(sampleUrls));
-                
-                // Then create players with the loaded buffers
-                Object.entries(sampleUrls).forEach(([name, url], index) => {
-                    try {
-                        this.drums[name] = new Tone.Player({
-                            buffer: buffers[index],
-                            volume: name === 'kick' ? -6 : name === 'snare' ? -4 : -8,
-                            onload: () => console.log(`${name} loaded`),
-                            onerror: (error) => console.error(`Error loading ${name}:`, error)
-                        }).connect(this.beatChannel);
-                    } catch (error) {
-                        console.error(`Error creating player for ${name}:`, error);
-                    }
-                });
-                
-                console.log("All samples loaded successfully");
-            } catch (error) {
-                console.error("Error loading samples:", error);
-                
-                // Fallback to individual loading if batch loading fails
-                console.log("Attempting individual sample loading...");
-                
-                for (const [name, url] of Object.entries(sampleUrls)) {
-                    try {
-                        const buffer = await Tone.Buffer.fromUrl(url);
-                        this.drums[name] = new Tone.Player({
-                            buffer: buffer,
-                            volume: name === 'kick' ? -6 : name === 'snare' ? -4 : -8,
-                            onload: () => console.log(`${name} loaded`),
-                            onerror: (error) => console.error(`Error loading ${name}:`, error)
-                        }).connect(this.beatChannel);
-                    } catch (error) {
-                        console.error(`Error loading ${name}:`, error);
-                    }
-                }
-            }
-
-            this.loadingState = 'initializing_effects';
-            // Initialize effects after samples are loaded
-            this.initializeEffects();
-            console.log("Effects initialized");
-
-            this.loadingState = 'initializing_sequencer';
-            this.initializeBeatSequencer();
-            console.log("Beat sequencer initialized");
-
-            this.loadingState = 'initializing_autogen';
-            this.initializeAutoGenerator();
-            console.log("Auto generator initialized");
-            
-            this.initialized = true;
-            this.loadingState = 'complete';
-            console.log("Audio engine initialized successfully");
         } catch (error) {
-            console.error("Error initializing audio:", error);
+            console.error('Error initializing audio:', error);
             this.loadingState = 'error';
-            this.initialized = false;
-            throw error;
         }
     }
 

@@ -159,6 +159,26 @@ document.addEventListener('DOMContentLoaded', () => {
         firstPatternBtn.classList.add('active');
         currentPattern = firstPatternBtn.dataset.pattern;
     }
+
+    // Initialize canvas and context
+    const canvas = document.getElementById('visualizer');
+    if (!canvas) {
+        console.error('Canvas element not found');
+        return;
+    }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+        console.error('Could not get canvas context');
+        return;
+    }
+
+    // Set canvas size
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
 });
 
 // Initialize controls
