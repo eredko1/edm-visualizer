@@ -100,26 +100,26 @@ class AudioEngine {
             
             this.loadingState = 'loading_samples';
             // Initialize drum samples with better quality samples and mobile optimization
-            this.drums = {
-                kick: new Tone.Player({
-                    url: "https://tonejs.github.io/audio/drum-samples/CR78/kick.mp3",
-                    volume: -6,
-                    onload: () => console.log("Kick loaded"),
-                    onerror: (error) => console.error("Error loading kick:", error)
-                }).connect(this.beatChannel),
-                snare: new Tone.Player({
-                    url: "https://tonejs.github.io/audio/drum-samples/CR78/snare.mp3",
-                    volume: -4,
-                    onload: () => console.log("Snare loaded"),
-                    onerror: (error) => console.error("Error loading snare:", error)
-                }).connect(this.beatChannel),
-                hihat: new Tone.Player({
-                    url: "https://tonejs.github.io/audio/drum-samples/CR78/hihat.mp3",
-                    volume: -8,
-                    onload: () => console.log("Hihat loaded"),
-                    onerror: (error) => console.error("Error loading hihat:", error)
-                }).connect(this.beatChannel)
+            const sampleUrls = {
+                kick: "https://tonejs.github.io/audio/drum-samples/CR78/kick.mp3",
+                snare: "https://tonejs.github.io/audio/drum-samples/CR78/snare.mp3",
+                hihat: "https://tonejs.github.io/audio/drum-samples/CR78/hihat.mp3"
             };
+
+            // Create players with proper URL handling
+            this.drums = {};
+            for (const [name, url] of Object.entries(sampleUrls)) {
+                try {
+                    this.drums[name] = new Tone.Player({
+                        url: url,
+                        volume: name === 'kick' ? -6 : name === 'snare' ? -4 : -8,
+                        onload: () => console.log(`${name} loaded`),
+                        onerror: (error) => console.error(`Error loading ${name}:`, error)
+                    }).connect(this.beatChannel);
+                } catch (error) {
+                    console.error(`Error creating player for ${name}:`, error);
+                }
+            }
 
             // Load all samples with timeout and retry mechanism
             this.loadingState = 'waiting_for_samples';
@@ -130,8 +130,18 @@ class AudioEngine {
             
             while (retryCount < maxRetries) {
                 try {
+                    const loadPromises = Object.entries(this.drums).map(async ([name, player]) => {
+                        try {
+                            await player.load();
+                            console.log(`${name} loaded successfully`);
+                        } catch (error) {
+                            console.error(`Error loading ${name}:`, error);
+                            throw error;
+                        }
+                    });
+
                     await Promise.race([
-                        Promise.all(Object.values(this.drums).map(drum => drum.load())),
+                        Promise.all(loadPromises),
                         new Promise((_, reject) => 
                             setTimeout(() => reject(new Error("Sample loading timeout")), timeoutDuration)
                         )
@@ -573,7 +583,7 @@ class AudioEngine {
         }
     }
 
-    // Add method for loading mobile-optimized samples
+    // Update the mobile fallback samples method
     async loadMobileFallbackSamples() {
         const mobileSamples = {
             kick: "https://tonejs.github.io/audio/drum-samples/CR78/kick.mp3",
@@ -583,17 +593,16 @@ class AudioEngine {
 
         for (const [name, url] of Object.entries(mobileSamples)) {
             try {
-                const response = await fetch(url);
-                const arrayBuffer = await response.arrayBuffer();
-                const audioBuffer = await Tone.context.decodeAudioData(arrayBuffer);
-                
-                // Create a new player with the decoded buffer
+                // Create a new player with direct URL
                 this.drums[name] = new Tone.Player({
-                    buffer: audioBuffer,
+                    url: url,
                     volume: name === 'kick' ? -6 : name === 'snare' ? -4 : -8,
                     onload: () => console.log(`${name} loaded (mobile optimized)`),
                     onerror: (error) => console.error(`Error loading ${name}:`, error)
                 }).connect(this.beatChannel);
+
+                // Load the sample
+                await this.drums[name].load();
             } catch (error) {
                 console.error(`Error loading mobile sample ${name}:`, error);
                 throw error;
