@@ -14,6 +14,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize help panel
     initializeHelpPanel();
     
+    // Initialize mobile controls
+    initializeMobileControls();
+    
     // Initialize audio engine
     const audioEngine = new AudioEngine();
     
@@ -279,4 +282,72 @@ function updateColorScheme(value) {
 
 // Initialize first pattern button as active
 let currentPattern = null;
-document.querySelector('.pattern-btn[data-pattern="house"]').classList.add('active'); 
+document.querySelector('.pattern-btn[data-pattern="house"]').classList.add('active');
+
+// Initialize mobile controls
+function initializeMobileControls() {
+    const mobileControlsToggle = document.querySelector('.mobile-controls-toggle');
+    const controlsPanel = document.querySelector('.controls-panel');
+    const mobileBeatPad = document.querySelector('.mobile-beat-pad');
+    
+    if (mobileControlsToggle) {
+        mobileControlsToggle.addEventListener('click', () => {
+            controlsPanel.classList.toggle('visible');
+            mobileBeatPad.classList.toggle('visible');
+        });
+    }
+
+    // Handle touch events for beat pads
+    const beatPads = document.querySelectorAll('.beat-pad');
+    beatPads.forEach(pad => {
+        pad.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const note = pad.dataset.note;
+            if (note) {
+                audioEngine.playNote(note);
+                pad.classList.add('active');
+            }
+        });
+
+        pad.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            pad.classList.remove('active');
+        });
+    });
+
+    // Handle touch events for pattern buttons
+    const patternButtons = document.querySelectorAll('.pattern-btn');
+    patternButtons.forEach(btn => {
+        btn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const pattern = btn.dataset.pattern;
+            if (pattern) {
+                audioEngine.changePattern(pattern);
+                patternButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            }
+        });
+    });
+
+    // Handle touch events for sliders
+    const sliders = document.querySelectorAll('input[type="range"]');
+    sliders.forEach(slider => {
+        slider.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const value = e.touches[0].clientX;
+            const rect = slider.getBoundingClientRect();
+            const percentage = (value - rect.left) / rect.width;
+            slider.value = percentage * (slider.max - slider.min) + slider.min;
+            slider.dispatchEvent(new Event('input'));
+        });
+
+        slider.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const value = e.touches[0].clientX;
+            const rect = slider.getBoundingClientRect();
+            const percentage = Math.max(0, Math.min(1, (value - rect.left) / rect.width));
+            slider.value = percentage * (slider.max - slider.min) + slider.min;
+            slider.dispatchEvent(new Event('input'));
+        });
+    });
+} 
