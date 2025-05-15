@@ -24,46 +24,49 @@ body {
 /* Beat Pad Styles */
 .beat-pad-overlay {
     position: absolute;
-    top: 50%;
+    bottom: 20px;
     left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 2;
-    pointer-events: none;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.7);
+    padding: 15px;
+    border-radius: 10px;
+    display: none;
+}
+
+.beat-pad-overlay.visible {
+    display: block;
 }
 
 .beat-pad-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(8, 1fr);
     gap: 10px;
-    padding: 20px;
-    background: rgba(0, 0, 0, 0.5);
-    border-radius: 10px;
-    backdrop-filter: blur(5px);
 }
 
 .beat-pad {
-    width: 80px;
-    height: 80px;
+    width: 60px;
+    height: 60px;
     background: rgba(255, 255, 255, 0.1);
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
     display: flex;
     align-items: center;
     justify-content: center;
+    color: #fff;
     cursor: pointer;
-    transition: all 0.1s ease;
-    pointer-events: auto;
+    transition: all 0.2s;
 }
 
 .beat-pad:hover {
     background: rgba(255, 255, 255, 0.2);
-    transform: scale(1.05);
+    transform: translateY(-2px);
 }
 
 .beat-pad.active {
-    background: rgba(255, 255, 255, 0.3);
+    background: #00ff88;
+    color: #000;
+    border-color: #00ff88;
     transform: scale(0.95);
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
 }
 
 .beat-pad span {
@@ -77,46 +80,85 @@ body {
     position: fixed;
     bottom: 0;
     left: 0;
-    width: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(10px);
+    right: 0;
+    background: rgba(0, 0, 0, 0.9);
     padding: 20px;
-    z-index: 2;
-    transition: transform 0.3s ease;
+    z-index: 100;
+    transition: transform 0.3s ease-in-out;
 }
 
-.controls-panel:hover {
-    transform: translateY(0);
+.controls-panel.collapsed {
+    transform: translateY(calc(100% - 40px));
 }
 
-.control-group {
+.controls-header {
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.toggle-controls {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1.2em;
+    cursor: pointer;
+    padding: 5px 15px;
+    border-radius: 20px;
+    transition: background-color 0.3s;
+}
+
+.toggle-controls:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.control-section {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 15px;
 }
 
-.control-group label {
-    display: block;
-    margin-bottom: 5px;
-    color: #fff;
-    font-size: 0.9em;
-}
-
-.form-control {
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+.section-header h3 {
+    margin: 0;
+    font-size: 1.2em;
     color: #fff;
 }
 
-.form-control:focus {
-    background-color: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.3);
+.toggle-section {
+    background: none;
+    border: none;
     color: #fff;
-    box-shadow: none;
+    cursor: pointer;
+    padding: 5px;
+    transition: transform 0.3s;
 }
 
-/* Beat Pattern Buttons */
+.toggle-section.rotated {
+    transform: rotate(180deg);
+}
+
+.section-content {
+    max-height: 500px;
+    overflow: hidden;
+    transition: max-height 0.3s ease-in-out;
+}
+
+.section-content.collapsed {
+    max-height: 0;
+}
+
+/* Beat Patterns */
 .beat-patterns {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
     gap: 10px;
     margin-bottom: 15px;
 }
@@ -125,20 +167,71 @@ body {
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #fff;
-    padding: 8px;
+    padding: 8px 12px;
     border-radius: 5px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s;
 }
 
 .pattern-btn:hover {
     background: rgba(255, 255, 255, 0.2);
-    transform: scale(1.05);
+    transform: translateY(-2px);
 }
 
 .pattern-btn.active {
-    background: rgba(255, 255, 255, 0.3);
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    background: #00ff88;
+    color: #000;
+    border-color: #00ff88;
+}
+
+/* Control Groups */
+.control-group {
+    margin-bottom: 15px;
+}
+
+.control-group label {
+    display: block;
+    color: #fff;
+    margin-bottom: 5px;
+    font-size: 0.9em;
+}
+
+.control-group input[type="range"] {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    height: 5px;
+    border-radius: 5px;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.control-group input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 15px;
+    height: 15px;
+    background: #00ff88;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.control-group input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.control-group select {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 8px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.control-group select option {
+    background: #000;
+    color: #fff;
 }
 
 /* Keyboard Help */
@@ -146,22 +239,22 @@ body {
     position: fixed;
     top: 20px;
     right: 20px;
-    z-index: 3;
+    z-index: 100;
 }
 
 .help-toggle {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.7);
+    border: none;
     color: #fff;
     width: 40px;
     height: 40px;
     border-radius: 50%;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s;
 }
 
 .help-toggle:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.9);
     transform: scale(1.1);
 }
 
@@ -169,52 +262,47 @@ body {
     position: absolute;
     top: 50px;
     right: 0;
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(10px);
+    background: rgba(0, 0, 0, 0.9);
     padding: 15px;
     border-radius: 10px;
+    color: #fff;
     display: none;
     min-width: 200px;
 }
 
-.help-content.active {
+.help-content.visible {
     display: block;
 }
 
 .help-content h4 {
     margin: 0 0 10px 0;
-    color: #fff;
-    font-size: 1.1em;
+    color: #00ff88;
 }
 
 .help-content p {
     margin: 5px 0;
-    color: rgba(255, 255, 255, 0.8);
     font-size: 0.9em;
 }
 
-/* Slider Styles */
-input[type="range"] {
-    width: 100%;
-    background: transparent;
-    -webkit-appearance: none;
-}
+/* Responsive Design */
+@media (max-width: 768px) {
+    .controls-panel {
+        padding: 10px;
+    }
 
-input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 15px;
-    height: 15px;
-    background: #fff;
-    border-radius: 50%;
-    cursor: pointer;
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-}
+    .control-section {
+        margin-bottom: 10px;
+    }
 
-input[type="range"]::-webkit-slider-runnable-track {
-    width: 100%;
-    height: 2px;
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 2px;
+    .beat-pad {
+        width: 40px;
+        height: 40px;
+        font-size: 0.8em;
+    }
+
+    .help-content {
+        right: -100px;
+    }
 }
 
 /* Headers */
@@ -239,24 +327,4 @@ h3 i {
     margin-left: 10px;
     color: #00ffff;
     font-weight: bold;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .controls-panel {
-        padding: 10px;
-    }
-    
-    .col-md-3 {
-        margin-bottom: 20px;
-    }
-    
-    .beat-pad {
-        width: 60px;
-        height: 60px;
-    }
-    
-    .beat-pad span {
-        font-size: 1em;
-    }
 } 

@@ -1,247 +1,350 @@
 class AudioEngine {
     constructor() {
-        this.synth = null;
-        this.effects = {
-            reverb: new Tone.Reverb(),
-            delay: new Tone.FeedbackDelay(),
-            distortion: new Tone.Distortion(),
-            filter: new Tone.Filter()
-        };
+        this.initializeAudio();
+        this.initializeEffects();
+        this.initializeSynths();
+        this.initializeBeatSequencer();
+    }
+
+    initializeAudio() {
+        // Initialize Tone.js
+        this.masterVolume = new Tone.Volume(-10).toDestination();
+        this.mixer = new Tone.Gain(1).connect(this.masterVolume);
         
-        this.beatPatterns = {
-            house: [
-                { note: 'C3', duration: '8n', time: '0:0' },
-                { note: 'E3', duration: '8n', time: '0:1' },
-                { note: 'G3', duration: '8n', time: '0:2' },
-                { note: 'B3', duration: '8n', time: '0:3' },
-                { note: 'C4', duration: '4n', time: '1:0' },
-                { note: 'B3', duration: '8n', time: '1:2' },
-                { note: 'G3', duration: '8n', time: '1:3' },
-                { note: 'E3', duration: '8n', time: '2:0' }
-            ],
-            techno: [
-                { note: 'C3', duration: '8n', time: '0:0' },
-                { note: 'E3', duration: '8n', time: '0:2' },
-                { note: 'G3', duration: '8n', time: '1:0' },
-                { note: 'B3', duration: '8n', time: '1:2' },
-                { note: 'C4', duration: '8n', time: '2:0' },
-                { note: 'B3', duration: '8n', time: '2:2' },
-                { note: 'G3', duration: '8n', time: '3:0' },
-                { note: 'E3', duration: '8n', time: '3:2' }
-            ],
-            dubstep: [
-                { note: 'C3', duration: '4n', time: '0:0' },
-                { note: 'G3', duration: '8n', time: '0:2' },
-                { note: 'B3', duration: '8n', time: '1:0' },
-                { note: 'C4', duration: '4n', time: '1:2' },
-                { note: 'B3', duration: '8n', time: '2:0' },
-                { note: 'G3', duration: '8n', time: '2:2' },
-                { note: 'E3', duration: '8n', time: '3:0' },
-                { note: 'C3', duration: '8n', time: '3:2' }
-            ],
-            trance: [
-                { note: 'C3', duration: '8n', time: '0:0' },
-                { note: 'E3', duration: '8n', time: '0:1' },
-                { note: 'G3', duration: '8n', time: '0:2' },
-                { note: 'B3', duration: '8n', time: '0:3' },
-                { note: 'C4', duration: '8n', time: '1:0' },
-                { note: 'B3', duration: '8n', time: '1:1' },
-                { note: 'G3', duration: '8n', time: '1:2' },
-                { note: 'E3', duration: '8n', time: '1:3' }
-            ]
-        };
-        
+        // Create channels
+        this.beatChannel = new Tone.Channel().connect(this.mixer);
+        this.synthChannel = new Tone.Channel().connect(this.mixer);
+        this.effectsChannel = new Tone.Channel().connect(this.mixer);
+    }
+
+    initializeEffects() {
+        // Reverb
+        this.reverb = new Tone.Reverb({
+            decay: 4,
+            wet: 0.3
+        }).connect(this.effectsChannel);
+
+        // Delay
+        this.delay = new Tone.FeedbackDelay({
+            delayTime: 0.25,
+            feedback: 0.3,
+            wet: 0.2
+        }).connect(this.effectsChannel);
+
+        // Distortion
+        this.distortion = new Tone.Distortion({
+            distortion: 0.1,
+            wet: 0.1
+        }).connect(this.effectsChannel);
+
+        // Filter
+        this.filter = new Tone.Filter({
+            frequency: 1000,
+            type: "lowpass"
+        }).connect(this.effectsChannel);
+    }
+
+    initializeSynths() {
+        // Basic synth
+        this.synth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: {
+                type: "sine"
+            },
+            envelope: {
+                attack: 0.1,
+                decay: 0.2,
+                sustain: 0.5,
+                release: 0.8
+            }
+        }).connect(this.filter);
+
+        // FM synth for more complex sounds
+        this.fmSynth = new Tone.FMSynth({
+            harmonicity: 3,
+            modulationIndex: 10,
+            oscillator: {
+                type: "sine"
+            },
+            envelope: {
+                attack: 0.1,
+                decay: 0.2,
+                sustain: 0.5,
+                release: 0.8
+            },
+            modulation: {
+                type: "square"
+            },
+            modulationEnvelope: {
+                attack: 0.5,
+                decay: 0.2,
+                sustain: 0.5,
+                release: 0.8
+            }
+        }).connect(this.filter);
+
+        // AM synth for metallic sounds
+        this.amSynth = new Tone.AMSynth({
+            harmonicity: 3,
+            detune: 0,
+            oscillator: {
+                type: "sine"
+            },
+            envelope: {
+                attack: 0.1,
+                decay: 0.2,
+                sustain: 0.5,
+                release: 0.8
+            },
+            modulation: {
+                type: "square"
+            },
+            modulationEnvelope: {
+                attack: 0.5,
+                decay: 0.2,
+                sustain: 0.5,
+                release: 0.8
+            }
+        }).connect(this.filter);
+
+        // Membrane synth for drum-like sounds
+        this.membraneSynth = new Tone.MembraneSynth({
+            pitchDecay: 0.05,
+            octaves: 2,
+            oscillator: {
+                type: "sine"
+            },
+            envelope: {
+                attack: 0.01,
+                decay: 0.2,
+                sustain: 0.2,
+                release: 1.4,
+                attackCurve: "exponential"
+            }
+        }).connect(this.filter);
+    }
+
+    initializeBeatSequencer() {
+        this.bpm = 128;
+        this.beatVolume = 0.5;
         this.currentPattern = 'house';
         this.isPlaying = false;
-        this.bpm = 128;
-        
-        this.setupAudioChain();
-        this.setupEventListeners();
-        this.initializeSynth();
-        this.setupKeyboardControls();
-    }
 
-    setupAudioChain() {
-        // Connect effects in series
-        this.effects.reverb.toDestination();
-        this.effects.delay.connect(this.effects.reverb);
-        this.effects.distortion.connect(this.effects.delay);
-        this.effects.filter.connect(this.effects.distortion);
-    }
-
-    setupEventListeners() {
-        // Synth controls
-        document.getElementById('synthType').addEventListener('change', (e) => this.changeSynthType(e.target.value));
-        document.getElementById('attack').addEventListener('input', (e) => this.updateEnvelope('attack', e.target.value));
-        document.getElementById('decay').addEventListener('input', (e) => this.updateEnvelope('decay', e.target.value));
-        document.getElementById('sustain').addEventListener('input', (e) => this.updateEnvelope('sustain', e.target.value));
-        document.getElementById('release').addEventListener('input', (e) => this.updateEnvelope('release', e.target.value));
-
-        // Effects controls
-        document.getElementById('reverb').addEventListener('input', (e) => this.updateEffect('reverb', 'wet', e.target.value));
-        document.getElementById('delay').addEventListener('input', (e) => this.updateEffect('delay', 'wet', e.target.value));
-        document.getElementById('distortion').addEventListener('input', (e) => this.updateEffect('distortion', 'distortion', e.target.value));
-        document.getElementById('filterCutoff').addEventListener('input', (e) => this.updateEffect('filter', 'frequency', e.target.value));
-
-        // Beat controls
-        document.getElementById('bpm').addEventListener('input', (e) => {
-            this.bpm = parseInt(e.target.value);
-            Tone.Transport.bpm.value = this.bpm;
-            document.querySelector('.bpm-value').textContent = this.bpm;
-        });
-
-        document.getElementById('beatVolume').addEventListener('input', (e) => {
-            this.synth.volume.value = Tone.gainToDb(e.target.value);
-        });
-
-        // Beat pattern buttons
-        document.querySelectorAll('.pattern-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                this.currentPattern = e.target.dataset.pattern;
-                document.querySelectorAll('.pattern-btn').forEach(b => b.classList.remove('active'));
-                e.target.classList.add('active');
-                this.updateBeatPattern();
-            });
-        });
-
-        // Beat pads
-        document.querySelectorAll('.beat-pad').forEach(pad => {
-            pad.addEventListener('click', (e) => {
-                const note = e.target.dataset.note;
-                this.playNote(note);
-                e.target.classList.add('active');
-                setTimeout(() => e.target.classList.remove('active'), 100);
-            });
-        });
-    }
-
-    setupKeyboardControls() {
-        const keyMap = {
-            'a': 'C3', 's': 'D3', 'd': 'E3', 'f': 'F3', 'g': 'G3', 'h': 'A3', 'j': 'B3', 'k': 'C4',
-            'z': 'C4', 'x': 'D4', 'c': 'E4', 'v': 'F4', 'b': 'G4', 'n': 'A4', 'm': 'B4'
+        // Define beat patterns
+        this.patterns = {
+            house: {
+                name: "House",
+                bpm: 128,
+                steps: [
+                    { note: "C2", time: "0:0" },
+                    { note: "E2", time: "0:1" },
+                    { note: "G2", time: "0:2" },
+                    { note: "E2", time: "0:3" },
+                    { note: "C2", time: "1:0" },
+                    { note: "E2", time: "1:1" },
+                    { note: "G2", time: "1:2" },
+                    { note: "E2", time: "1:3" }
+                ]
+            },
+            techno: {
+                name: "Techno",
+                bpm: 130,
+                steps: [
+                    { note: "C2", time: "0:0" },
+                    { note: "E2", time: "0:1" },
+                    { note: "G2", time: "0:2" },
+                    { note: "E2", time: "0:3" },
+                    { note: "C2", time: "1:0" },
+                    { note: "E2", time: "1:1" },
+                    { note: "G2", time: "1:2" },
+                    { note: "E2", time: "1:3" }
+                ]
+            },
+            dubstep: {
+                name: "Dubstep",
+                bpm: 140,
+                steps: [
+                    { note: "C2", time: "0:0" },
+                    { note: "E2", time: "0:1" },
+                    { note: "G2", time: "0:2" },
+                    { note: "E2", time: "0:3" },
+                    { note: "C2", time: "1:0" },
+                    { note: "E2", time: "1:1" },
+                    { note: "G2", time: "1:2" },
+                    { note: "E2", time: "1:3" }
+                ]
+            },
+            trance: {
+                name: "Trance",
+                bpm: 138,
+                steps: [
+                    { note: "C2", time: "0:0" },
+                    { note: "E2", time: "0:1" },
+                    { note: "G2", time: "0:2" },
+                    { note: "E2", time: "0:3" },
+                    { note: "C2", time: "1:0" },
+                    { note: "E2", time: "1:1" },
+                    { note: "G2", time: "1:2" },
+                    { note: "E2", time: "1:3" }
+                ]
+            },
+            drumandbass: {
+                name: "Drum & Bass",
+                bpm: 174,
+                steps: [
+                    { note: "C2", time: "0:0" },
+                    { note: "E2", time: "0:1" },
+                    { note: "G2", time: "0:2" },
+                    { note: "E2", time: "0:3" },
+                    { note: "C2", time: "1:0" },
+                    { note: "E2", time: "1:1" },
+                    { note: "G2", time: "1:2" },
+                    { note: "E2", time: "1:3" }
+                ]
+            },
+            hardstyle: {
+                name: "Hardstyle",
+                bpm: 150,
+                steps: [
+                    { note: "C2", time: "0:0" },
+                    { note: "E2", time: "0:1" },
+                    { note: "G2", time: "0:2" },
+                    { note: "E2", time: "0:3" },
+                    { note: "C2", time: "1:0" },
+                    { note: "E2", time: "1:1" },
+                    { note: "G2", time: "1:2" },
+                    { note: "E2", time: "1:3" }
+                ]
+            },
+            progressive: {
+                name: "Progressive",
+                bpm: 126,
+                steps: [
+                    { note: "C2", time: "0:0" },
+                    { note: "E2", time: "0:1" },
+                    { note: "G2", time: "0:2" },
+                    { note: "E2", time: "0:3" },
+                    { note: "C2", time: "1:0" },
+                    { note: "E2", time: "1:1" },
+                    { note: "G2", time: "1:2" },
+                    { note: "E2", time: "1:3" }
+                ]
+            },
+            futurebass: {
+                name: "Future Bass",
+                bpm: 150,
+                steps: [
+                    { note: "C2", time: "0:0" },
+                    { note: "E2", time: "0:1" },
+                    { note: "G2", time: "0:2" },
+                    { note: "E2", time: "0:3" },
+                    { note: "C2", time: "1:0" },
+                    { note: "E2", time: "1:1" },
+                    { note: "G2", time: "1:2" },
+                    { note: "E2", time: "1:3" }
+                ]
+            }
         };
 
-        document.addEventListener('keydown', (e) => {
-            if (keyMap[e.key.toLowerCase()]) {
-                this.playNote(keyMap[e.key.toLowerCase()]);
-            }
-            
-            // Space to toggle beat
-            if (e.code === 'Space') {
-                e.preventDefault();
-                this.toggleBeat();
-            }
-            
-            // Number keys for patterns
-            if (e.key >= '1' && e.key <= '4') {
-                const patterns = ['house', 'techno', 'dubstep', 'trance'];
-                this.currentPattern = patterns[parseInt(e.key) - 1];
-                this.updateBeatPattern();
-            }
-            
-            // Arrow keys for BPM and filter
-            if (e.key === 'ArrowUp') {
-                this.bpm = Math.min(this.bpm + 1, 180);
-                Tone.Transport.bpm.value = this.bpm;
-                document.getElementById('bpm').value = this.bpm;
-                document.querySelector('.bpm-value').textContent = this.bpm;
-            }
-            if (e.key === 'ArrowDown') {
-                this.bpm = Math.max(this.bpm - 1, 60);
-                Tone.Transport.bpm.value = this.bpm;
-                document.getElementById('bpm').value = this.bpm;
-                document.querySelector('.bpm-value').textContent = this.bpm;
-            }
-            if (e.key === 'ArrowLeft') {
-                const currentFreq = this.effects.filter.frequency.value;
-                this.effects.filter.frequency.value = Math.max(currentFreq - 100, 20);
-                document.getElementById('filterCutoff').value = this.effects.filter.frequency.value;
-            }
-            if (e.key === 'ArrowRight') {
-                const currentFreq = this.effects.filter.frequency.value;
-                this.effects.filter.frequency.value = Math.min(currentFreq + 100, 20000);
-                document.getElementById('filterCutoff').value = this.effects.filter.frequency.value;
-            }
-        });
+        // Create sequencer
+        this.sequencer = new Tone.Sequence(
+            (time, step) => {
+                const pattern = this.patterns[this.currentPattern];
+                if (pattern && pattern.steps[step]) {
+                    const note = pattern.steps[step].note;
+                    this.membraneSynth.triggerAttackRelease(note, "16n", time);
+                }
+            },
+            [0, 1, 2, 3, 4, 5, 6, 7],
+            "16n"
+        );
     }
 
-    initializeSynth() {
-        this.changeSynthType('synth');
-        this.startAutoPlay();
+    // Play a note
+    playNote(note) {
+        this.synth.triggerAttackRelease(note, "8n");
     }
 
-    changeSynthType(type) {
-        if (this.synth) {
-            this.synth.dispose();
-        }
-
-        switch(type) {
-            case 'fm':
-                this.synth = new Tone.FMSynth().connect(this.effects.filter);
-                break;
-            case 'am':
-                this.synth = new Tone.AMSynth().connect(this.effects.filter);
-                break;
-            case 'membrane':
-                this.synth = new Tone.MembraneSynth().connect(this.effects.filter);
-                break;
-            default:
-                this.synth = new Tone.Synth().connect(this.effects.filter);
-        }
-
-        this.updateEnvelope('attack', document.getElementById('attack').value);
-        this.updateEnvelope('decay', document.getElementById('decay').value);
-        this.updateEnvelope('sustain', document.getElementById('sustain').value);
-        this.updateEnvelope('release', document.getElementById('release').value);
-    }
-
-    updateEnvelope(param, value) {
-        if (this.synth && this.synth.envelope) {
-            this.synth.envelope[param] = parseFloat(value);
-        }
-    }
-
-    updateEffect(effect, param, value) {
-        if (this.effects[effect]) {
-            this.effects[effect][param] = parseFloat(value);
-        }
-    }
-
-    startAutoPlay() {
-        this.updateBeatPattern();
-        Tone.Transport.start();
-    }
-
-    updateBeatPattern() {
-        // Clear existing pattern
-        Tone.Transport.cancel();
-        
-        // Schedule new pattern
-        this.beatPatterns[this.currentPattern].forEach(step => {
-            Tone.Transport.schedule((time) => {
-                this.synth.triggerAttackRelease(step.note, step.duration, time);
-            }, step.time);
-        });
-    }
-
+    // Toggle beat sequencer
     toggleBeat() {
         if (this.isPlaying) {
-            Tone.Transport.stop();
+            this.sequencer.stop();
+            this.isPlaying = false;
         } else {
-            Tone.Transport.start();
-        }
-        this.isPlaying = !this.isPlaying;
-    }
-
-    playNote(note, duration = '8n') {
-        if (this.synth) {
-            this.synth.triggerAttackRelease(note, duration);
+            this.sequencer.start();
+            this.isPlaying = true;
         }
     }
 
-    stopNote() {
-        if (this.synth) {
-            this.synth.triggerRelease();
+    // Change beat pattern
+    changePattern(pattern) {
+        this.currentPattern = pattern;
+        if (this.isPlaying) {
+            this.sequencer.stop();
+            this.sequencer.start();
+        }
+    }
+
+    // Update BPM
+    updateBPM(bpm) {
+        this.bpm = bpm;
+        Tone.Transport.bpm.value = bpm;
+    }
+
+    // Update beat volume
+    updateBeatVolume(volume) {
+        this.beatVolume = volume;
+        this.beatChannel.volume.value = Tone.gainToDb(volume);
+    }
+
+    // Update synth envelope
+    updateSynthEnvelope(param, value) {
+        this.synth.set({ envelope: { [param]: value } });
+        this.fmSynth.set({ envelope: { [param]: value } });
+        this.amSynth.set({ envelope: { [param]: value } });
+    }
+
+    // Update effects
+    updateEffect(effect, value) {
+        switch(effect) {
+            case 'reverb':
+                this.reverb.set({ wet: value });
+                break;
+            case 'delay':
+                this.delay.set({ wet: value });
+                break;
+            case 'distortion':
+                this.distortion.set({ wet: value });
+                break;
+        }
+    }
+
+    // Update filter
+    updateFilter(frequency) {
+        this.filter.set({ frequency: frequency });
+    }
+
+    // Update synth type
+    updateSynthType(type) {
+        // Disconnect current synth
+        this.synth.disconnect();
+        this.fmSynth.disconnect();
+        this.amSynth.disconnect();
+        this.membraneSynth.disconnect();
+
+        // Connect new synth
+        switch(type) {
+            case 'synth':
+                this.synth.connect(this.filter);
+                break;
+            case 'fm':
+                this.fmSynth.connect(this.filter);
+                break;
+            case 'am':
+                this.amSynth.connect(this.filter);
+                break;
+            case 'membrane':
+                this.membraneSynth.connect(this.filter);
+                break;
         }
     }
 }

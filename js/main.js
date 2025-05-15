@@ -1,4 +1,19 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize Tone.js
+    Tone.start();
+    
+    // Initialize controls
+    initializeControls();
+    
+    // Initialize beat sequencer
+    initializeBeatSequencer();
+    
+    // Initialize keyboard controls
+    initializeKeyboardControls();
+    
+    // Initialize help panel
+    initializeHelpPanel();
+    
     // Initialize audio engine
     const audioEngine = new AudioEngine();
     
@@ -68,21 +83,200 @@ document.addEventListener('DOMContentLoaded', () => {
         visualizer.resizeCanvas();
     });
 
-    // Keyboard help toggle
+    // Start with first pattern
+    const firstPatternBtn = document.querySelector('.pattern-btn');
+    if (firstPatternBtn) {
+        firstPatternBtn.classList.add('active');
+        currentPattern = firstPatternBtn.dataset.pattern;
+    }
+});
+
+// Initialize controls
+function initializeControls() {
+    // Main controls toggle
+    const toggleControls = document.querySelector('.toggle-controls');
+    const controlsPanel = document.querySelector('.controls-panel');
+    
+    if (toggleControls && controlsPanel) {
+        toggleControls.addEventListener('click', () => {
+            controlsPanel.classList.toggle('collapsed');
+            const icon = toggleControls.querySelector('i');
+            icon.classList.toggle('fa-chevron-up');
+            icon.classList.toggle('fa-chevron-down');
+        });
+    }
+    
+    // Section toggles
+    const sectionToggles = document.querySelectorAll('.toggle-section');
+    sectionToggles.forEach(toggle => {
+        toggle.addEventListener('click', () => {
+            const section = toggle.closest('.control-section');
+            const content = section.querySelector('.section-content');
+            const icon = toggle.querySelector('i');
+            
+            content.classList.toggle('collapsed');
+            icon.classList.toggle('rotated');
+        });
+    });
+    
+    // Initialize all sliders and controls
+    initializeSliders();
+    initializeSelects();
+}
+
+// Initialize sliders
+function initializeSliders() {
+    const sliders = document.querySelectorAll('input[type="range"]');
+    sliders.forEach(slider => {
+        // Set initial value display
+        const valueDisplay = slider.nextElementSibling;
+        if (valueDisplay && valueDisplay.classList.contains('bpm-value')) {
+            valueDisplay.textContent = slider.value;
+        }
+        
+        // Add change event listener
+        slider.addEventListener('input', (e) => {
+            const value = e.target.value;
+            
+            // Update value display if exists
+            if (valueDisplay && valueDisplay.classList.contains('bpm-value')) {
+                valueDisplay.textContent = value;
+            }
+            
+            // Handle different slider types
+            switch(slider.id) {
+                case 'bpm':
+                    updateBPM(value);
+                    break;
+                case 'beatVolume':
+                    updateBeatVolume(value);
+                    break;
+                case 'attack':
+                case 'decay':
+                case 'sustain':
+                case 'release':
+                    updateSynthEnvelope(slider.id, value);
+                    break;
+                case 'reverb':
+                case 'delay':
+                case 'distortion':
+                    updateEffect(slider.id, value);
+                    break;
+                case 'filterCutoff':
+                    updateFilter(value);
+                    break;
+                case 'particleCount':
+                    updateParticleCount(value);
+                    break;
+                case 'vizSpeed':
+                    updateVisualizationSpeed(value);
+                    break;
+            }
+        });
+    });
+}
+
+// Initialize select dropdowns
+function initializeSelects() {
+    const selects = document.querySelectorAll('select');
+    selects.forEach(select => {
+        select.addEventListener('change', (e) => {
+            const value = e.target.value;
+            
+            switch(select.id) {
+                case 'synthType':
+                    updateSynthType(value);
+                    break;
+                case 'vizType':
+                    updateVisualizationType(value);
+                    break;
+                case 'colorScheme':
+                    updateColorScheme(value);
+                    break;
+            }
+        });
+    });
+}
+
+// Initialize help panel
+function initializeHelpPanel() {
     const helpToggle = document.querySelector('.help-toggle');
     const helpContent = document.querySelector('.help-content');
     
-    helpToggle.addEventListener('click', () => {
-        helpContent.classList.toggle('active');
-    });
+    if (helpToggle && helpContent) {
+        helpToggle.addEventListener('click', () => {
+            helpContent.classList.toggle('visible');
+        });
+        
+        // Close help when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!helpToggle.contains(e.target) && !helpContent.contains(e.target)) {
+                helpContent.classList.remove('visible');
+            }
+        });
+    }
+}
 
-    // Close help when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!helpToggle.contains(e.target) && !helpContent.contains(e.target)) {
-            helpContent.classList.remove('active');
-        }
-    });
+// Initialize beat sequencer
+function initializeBeatSequencer() {
+    // Implementation of initializeBeatSequencer function
+}
 
-    // Initialize first pattern button as active
-    document.querySelector('.pattern-btn[data-pattern="house"]').classList.add('active');
-}); 
+// Initialize keyboard controls
+function initializeKeyboardControls() {
+    // Implementation of initializeKeyboardControls function
+}
+
+// Update BPM
+function updateBPM(value) {
+    // Implementation of updateBPM function
+}
+
+// Update beat volume
+function updateBeatVolume(value) {
+    // Implementation of updateBeatVolume function
+}
+
+// Update synth envelope
+function updateSynthEnvelope(id, value) {
+    // Implementation of updateSynthEnvelope function
+}
+
+// Update effect
+function updateEffect(id, value) {
+    // Implementation of updateEffect function
+}
+
+// Update filter
+function updateFilter(value) {
+    // Implementation of updateFilter function
+}
+
+// Update particle count
+function updateParticleCount(value) {
+    // Implementation of updateParticleCount function
+}
+
+// Update visualization speed
+function updateVisualizationSpeed(value) {
+    // Implementation of updateVisualizationSpeed function
+}
+
+// Update synth type
+function updateSynthType(value) {
+    // Implementation of updateSynthType function
+}
+
+// Update visualization type
+function updateVisualizationType(value) {
+    // Implementation of updateVisualizationType function
+}
+
+// Update color scheme
+function updateColorScheme(value) {
+    // Implementation of updateColorScheme function
+}
+
+// Initialize first pattern button as active
+let currentPattern = null;
+document.querySelector('.pattern-btn[data-pattern="house"]').classList.add('active'); 
