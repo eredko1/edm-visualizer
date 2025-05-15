@@ -350,4 +350,128 @@ function initializeMobileControls() {
             slider.dispatchEvent(new Event('input'));
         });
     });
+
+    // Add gesture controls
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let lastTouchX = 0;
+    let lastTouchY = 0;
+    let isGestureActive = false;
+
+    document.addEventListener('touchstart', (e) => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        lastTouchX = touchStartX;
+        lastTouchY = touchStartY;
+        isGestureActive = true;
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+        if (!isGestureActive) return;
+
+        const touchX = e.touches[0].clientX;
+        const touchY = e.touches[0].clientY;
+        const deltaX = touchX - lastTouchX;
+        const deltaY = touchY - lastTouchY;
+
+        // Horizontal swipe for filter control
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+            const filterSlider = document.getElementById('filterCutoff');
+            if (filterSlider) {
+                const currentValue = parseFloat(filterSlider.value);
+                const newValue = Math.max(20, Math.min(20000, currentValue + deltaX * 10));
+                filterSlider.value = newValue;
+                filterSlider.dispatchEvent(new Event('input'));
+            }
+        }
+        // Vertical swipe for reverb control
+        else {
+            const reverbSlider = document.getElementById('reverb');
+            if (reverbSlider) {
+                const currentValue = parseFloat(reverbSlider.value);
+                const newValue = Math.max(0, Math.min(1, currentValue + deltaY * 0.01));
+                reverbSlider.value = newValue;
+                reverbSlider.dispatchEvent(new Event('input'));
+            }
+        }
+
+        lastTouchX = touchX;
+        lastTouchY = touchY;
+    }, { passive: true });
+
+    document.addEventListener('touchend', () => {
+        isGestureActive = false;
+    }, { passive: true });
+
+    // Add pinch-to-zoom for particle count
+    let initialDistance = 0;
+    document.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+            initialDistance = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2) {
+            const currentDistance = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            const scale = currentDistance / initialDistance;
+            
+            const particleSlider = document.getElementById('particleCount');
+            if (particleSlider) {
+                const currentValue = parseFloat(particleSlider.value);
+                const newValue = Math.max(100, Math.min(2000, currentValue * scale));
+                particleSlider.value = newValue;
+                particleSlider.dispatchEvent(new Event('input'));
+            }
+            
+            initialDistance = currentDistance;
+        }
+    }, { passive: true });
+
+    // Add double tap to toggle beat sequencer
+    let lastTap = 0;
+    document.addEventListener('touchend', (e) => {
+        const currentTime = new Date().getTime();
+        const tapLength = currentTime - lastTap;
+        if (tapLength < 300 && tapLength > 0) {
+            // Double tap detected
+            const beatToggle = document.querySelector('.pattern-btn.active');
+            if (beatToggle) {
+                beatToggle.click();
+            }
+        }
+        lastTap = currentTime;
+    }, { passive: true });
+
+    // Add shake detection for random pattern
+    let lastShake = 0;
+    let lastAcceleration = { x: 0, y: 0, z: 0 };
+    
+    if (window.DeviceMotionEvent) {
+        window.addEventListener('devicemotion', (e) => {
+            const currentTime = new Date().getTime();
+            if (currentTime - lastShake > 1000) { // Prevent too frequent triggers
+                const acceleration = e.accelerationIncludingGravity;
+                const deltaX = Math.abs(acceleration.x - lastAcceleration.x);
+                const deltaY = Math.abs(acceleration.y - lastAcceleration.y);
+                const deltaZ = Math.abs(acceleration.z - lastAcceleration.z);
+                
+                if (deltaX > 10 || deltaY > 10 || deltaZ > 10) {
+                    // Shake detected
+                    const patterns = Array.from(document.querySelectorAll('.pattern-btn'));
+                    const randomPattern = patterns[Math.floor(Math.random() * patterns.length)];
+                    randomPattern.click();
+                    lastShake = currentTime;
+                }
+                
+                lastAcceleration = acceleration;
+            }
+        });
+    }
 } 
