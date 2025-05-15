@@ -42,6 +42,11 @@ class AudioEngine {
             this.effectsChannel = new Tone.Channel(-3).connect(this.mixer);
             console.log("Channels created");
             
+            this.loadingState = 'initializing_synths';
+            // Initialize synths first
+            this.initializeSynths();
+            console.log("Synths initialized");
+            
             this.loadingState = 'loading_samples';
             // Initialize drum samples with better quality samples
             this.drums = {
@@ -77,10 +82,6 @@ class AudioEngine {
             // Initialize effects after samples are loaded
             this.initializeEffects();
             console.log("Effects initialized");
-
-            this.loadingState = 'initializing_synths';
-            this.initializeSynths();
-            console.log("Synths initialized");
 
             this.loadingState = 'initializing_sequencer';
             this.initializeBeatSequencer();
@@ -152,74 +153,6 @@ class AudioEngine {
                     decay: 0.2,
                     sustain: 0.5,
                     release: 0.8
-                },
-                maxPolyphony: 8
-            }).connect(this.synthChannel),
-            
-            fm: new Tone.PolySynth(Tone.FMSynth, {
-                harmonicity: 3,
-                modulationIndex: 10,
-                oscillator: {
-                    type: "sine",
-                    phase: 0
-                },
-                envelope: {
-                    attack: 0.1,
-                    decay: 0.2,
-                    sustain: 0.5,
-                    release: 0.8
-                },
-                modulation: {
-                    type: "square",
-                    phase: 0
-                },
-                modulationEnvelope: {
-                    attack: 0.5,
-                    decay: 0.1,
-                    sustain: 0.2,
-                    release: 0.1
-                },
-                maxPolyphony: 8
-            }).connect(this.synthChannel),
-            
-            am: new Tone.PolySynth(Tone.AMSynth, {
-                harmonicity: 3,
-                detune: 0,
-                oscillator: {
-                    type: "sine",
-                    phase: 0
-                },
-                envelope: {
-                    attack: 0.1,
-                    decay: 0.2,
-                    sustain: 0.5,
-                    release: 0.8
-                },
-                modulation: {
-                    type: "square",
-                    phase: 0
-                },
-                modulationEnvelope: {
-                    attack: 0.5,
-                    decay: 0.1,
-                    sustain: 0.2,
-                    release: 0.1
-                },
-                maxPolyphony: 8
-            }).connect(this.synthChannel),
-            
-            membrane: new Tone.PolySynth(Tone.MembraneSynth, {
-                pitchDecay: 0.05,
-                octaves: 2,
-                oscillator: {
-                    type: "sine",
-                    phase: 0
-                },
-                envelope: {
-                    attack: 0.01,
-                    decay: 0.2,
-                    sustain: 0.2,
-                    release: 1
                 },
                 maxPolyphony: 8
             }).connect(this.synthChannel)

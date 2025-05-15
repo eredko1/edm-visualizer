@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Mouse interaction for sound generation
     document.addEventListener('mousemove', (e) => {
-        if (!audioEngine || !audioEngine.initialized || !audioEngine.currentSynth) return;
+        if (!audioEngine?.initialized || !audioEngine?.currentSynth) return;
         
         const x = e.clientX / window.innerWidth;
         const y = e.clientY / window.innerHeight;
@@ -105,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Update synth parameters based on mouse position
         audioEngine.currentSynth.volume.value = Tone.gainToDb(velocity);
-        if (audioEngine.effects && audioEngine.effects.filter) {
+        if (audioEngine.effects?.filter) {
             audioEngine.effects.filter.frequency.value = 20 + (y * 20000); // 20Hz to 20kHz
         }
         
@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Touch interaction for mobile devices
     document.addEventListener('touchmove', (e) => {
-        if (!audioEngine || !audioEngine.initialized || !audioEngine.currentSynth) return;
+        if (!audioEngine?.initialized || !audioEngine?.currentSynth) return;
         
         e.preventDefault();
         const touch = e.touches[0];
@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Update synth parameters based on touch position
         audioEngine.currentSynth.volume.value = Tone.gainToDb(velocity);
-        if (audioEngine.effects && audioEngine.effects.filter) {
+        if (audioEngine.effects?.filter) {
             audioEngine.effects.filter.frequency.value = 20 + (y * 20000);
         }
         
@@ -144,13 +144,13 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Stop notes when mouse/touch is released
     document.addEventListener('mouseup', () => {
-        if (audioEngine && audioEngine.initialized && audioEngine.currentSynth) {
+        if (audioEngine?.initialized && audioEngine?.currentSynth) {
             audioEngine.stopNote();
         }
     });
     
     document.addEventListener('touchend', () => {
-        if (audioEngine && audioEngine.initialized && audioEngine.currentSynth) {
+        if (audioEngine?.initialized && audioEngine?.currentSynth) {
             audioEngine.stopNote();
         }
     });
