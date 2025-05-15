@@ -11,12 +11,19 @@ class Visualizer {
         this.vizSpeed = 1;
         this.lastTime = 0;
         this.frameCount = 0;
+        this.fractalParams = {
+            iterations: 100,
+            zoom: 1,
+            offsetX: 0,
+            offsetY: 0
+        };
         
         this.colors = {
             neon: ['#00ff88', '#00ffff', '#ff00ff', '#ffff00'],
             pastel: ['#ffb3ba', '#baffc9', '#bae1ff', '#ffffba'],
             monochrome: ['#ffffff', '#cccccc', '#999999', '#666666'],
-            rainbow: ['#ff0000', '#ff7f00', '#ffff00', '#00ff00', '#0000ff', '#4b0082', '#9400d3']
+            rainbow: ['#ff0000', '#ff7f00', '#ffff00', '#00ff00', '#0000ff', '#4b0082', '#9400d3'],
+            dj: ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff']
         };
         
         this.resizeCanvas();
@@ -81,7 +88,18 @@ class Visualizer {
             case 'vortex':
                 this.drawVortex(waveform);
                 break;
+            case 'fractal':
+                this.drawFractal(waveform);
+                break;
+            case 'julia':
+                this.drawJulia(waveform);
+                break;
+            case 'burningship':
+                this.drawBurningShip(waveform);
+                break;
         }
+        
+        this.frameCount++;
     }
     
     drawParticles(waveform) {
@@ -210,6 +228,115 @@ class Visualizer {
         this.frameCount++;
     }
     
+    drawFractal(waveform) {
+        const centerX = this.canvas.width / 2;
+        const centerY = this.canvas.height / 2;
+        const scale = Math.min(centerX, centerY) * this.fractalParams.zoom;
+        
+        const average = waveform.reduce((a, b) => a + Math.abs(b), 0) / waveform.length;
+        const iterations = Math.floor(this.fractalParams.iterations * (1 + average));
+        
+        for (let x = 0; x < this.canvas.width; x += 2) {
+            for (let y = 0; y < this.canvas.height; y += 2) {
+                let zx = (x - centerX) / scale + this.fractalParams.offsetX;
+                let zy = (y - centerY) / scale + this.fractalParams.offsetY;
+                let i = 0;
+                
+                while (zx * zx + zy * zy < 4 && i < iterations) {
+                    const xtemp = zx * zx - zy * zy;
+                    zy = 2 * zx * zy;
+                    zx = xtemp;
+                    i++;
+                }
+                
+                if (i < iterations) {
+                    const hue = (i / iterations) * 360;
+                    this.ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+                    this.ctx.fillRect(x, y, 2, 2);
+                }
+            }
+        }
+        
+        // Update fractal parameters based on audio
+        this.fractalParams.zoom = 1 + average * 0.5;
+        this.fractalParams.offsetX = Math.sin(this.frameCount * 0.01) * 0.5;
+        this.fractalParams.offsetY = Math.cos(this.frameCount * 0.01) * 0.5;
+    }
+    
+    drawJulia(waveform) {
+        const centerX = this.canvas.width / 2;
+        const centerY = this.canvas.height / 2;
+        const scale = Math.min(centerX, centerY) * this.fractalParams.zoom;
+        
+        const average = waveform.reduce((a, b) => a + Math.abs(b), 0) / waveform.length;
+        const iterations = Math.floor(this.fractalParams.iterations * (1 + average));
+        
+        // Julia set parameters based on audio
+        const cReal = Math.sin(this.frameCount * 0.01) * 0.4;
+        const cImag = Math.cos(this.frameCount * 0.01) * 0.4;
+        
+        for (let x = 0; x < this.canvas.width; x += 2) {
+            for (let y = 0; y < this.canvas.height; y += 2) {
+                let zx = (x - centerX) / scale + this.fractalParams.offsetX;
+                let zy = (y - centerY) / scale + this.fractalParams.offsetY;
+                let i = 0;
+                
+                while (zx * zx + zy * zy < 4 && i < iterations) {
+                    const xtemp = zx * zx - zy * zy;
+                    zy = 2 * zx * zy + cImag;
+                    zx = xtemp + cReal;
+                    i++;
+                }
+                
+                if (i < iterations) {
+                    const hue = (i / iterations) * 360;
+                    this.ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+                    this.ctx.fillRect(x, y, 2, 2);
+                }
+            }
+        }
+        
+        // Update fractal parameters based on audio
+        this.fractalParams.zoom = 1 + average * 0.5;
+        this.fractalParams.offsetX = Math.sin(this.frameCount * 0.02) * 0.5;
+        this.fractalParams.offsetY = Math.cos(this.frameCount * 0.02) * 0.5;
+    }
+    
+    drawBurningShip(waveform) {
+        const centerX = this.canvas.width / 2;
+        const centerY = this.canvas.height / 2;
+        const scale = Math.min(centerX, centerY) * this.fractalParams.zoom;
+        
+        const average = waveform.reduce((a, b) => a + Math.abs(b), 0) / waveform.length;
+        const iterations = Math.floor(this.fractalParams.iterations * (1 + average));
+        
+        for (let x = 0; x < this.canvas.width; x += 2) {
+            for (let y = 0; y < this.canvas.height; y += 2) {
+                let zx = (x - centerX) / scale + this.fractalParams.offsetX;
+                let zy = (y - centerY) / scale + this.fractalParams.offsetY;
+                let i = 0;
+                
+                while (zx * zx + zy * zy < 4 && i < iterations) {
+                    const xtemp = zx * zx - zy * zy;
+                    zy = Math.abs(2 * zx * zy);
+                    zx = Math.abs(xtemp);
+                    i++;
+                }
+                
+                if (i < iterations) {
+                    const hue = (i / iterations) * 360;
+                    this.ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+                    this.ctx.fillRect(x, y, 2, 2);
+                }
+            }
+        }
+        
+        // Update fractal parameters based on audio
+        this.fractalParams.zoom = 1 + average * 0.5;
+        this.fractalParams.offsetX = Math.sin(this.frameCount * 0.03) * 0.5;
+        this.fractalParams.offsetY = Math.cos(this.frameCount * 0.03) * 0.5;
+    }
+    
     updateParticleCount(count) {
         this.particleCount = Math.min(count, this.maxParticles);
         this.initializeParticles();
@@ -225,5 +352,9 @@ class Visualizer {
     
     updateVisualizationSpeed(speed) {
         this.vizSpeed = speed;
+    }
+    
+    updateFractalParams(params) {
+        this.fractalParams = { ...this.fractalParams, ...params };
     }
 } 

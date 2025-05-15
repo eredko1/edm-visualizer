@@ -10,44 +10,50 @@ class AudioEngine {
             await Tone.start();
             Tone.setContext(new Tone.Context({
                 latencyHint: 'interactive',
-                sampleRate: 44100
+                sampleRate: 44100,
+                lookAhead: 0.1
             }));
             
-            // Create master volume and mixer
-            this.masterVolume = new Tone.Volume(-10).toDestination();
+            // Create master volume and mixer with better control
+            this.masterVolume = new Tone.Volume(-6).toDestination();
             this.mixer = new Tone.Channel().connect(this.masterVolume);
             
-            // Create channels for beats, synths, and effects
-            this.beatChannel = new Tone.Channel().connect(this.mixer);
-            this.synthChannel = new Tone.Channel().connect(this.mixer);
-            this.effectsChannel = new Tone.Channel().connect(this.mixer);
+            // Create channels for beats, synths, and effects with better organization
+            this.beatChannel = new Tone.Channel(-3).connect(this.mixer);
+            this.synthChannel = new Tone.Channel(-3).connect(this.mixer);
+            this.effectsChannel = new Tone.Channel(-3).connect(this.mixer);
             
             // Initialize drum samples with better quality samples
             this.drums = {
                 kick: new Tone.Player({
                     url: "https://tonejs.github.io/audio/drum-samples/CR78/kick.mp3",
-                    volume: -10,
+                    volume: -6,
                     onload: () => console.log("Kick loaded")
                 }).connect(this.beatChannel),
                 snare: new Tone.Player({
                     url: "https://tonejs.github.io/audio/drum-samples/CR78/snare.mp3",
-                    volume: -8,
+                    volume: -4,
                     onload: () => console.log("Snare loaded")
                 }).connect(this.beatChannel),
                 hihat: new Tone.Player({
                     url: "https://tonejs.github.io/audio/drum-samples/CR78/hihat.mp3",
-                    volume: -12,
+                    volume: -8,
                     onload: () => console.log("Hihat loaded")
                 }).connect(this.beatChannel),
                 clap: new Tone.Player({
                     url: "https://tonejs.github.io/audio/drum-samples/CR78/clap.mp3",
-                    volume: -8,
+                    volume: -4,
                     onload: () => console.log("Clap loaded")
                 }).connect(this.beatChannel),
                 tom: new Tone.Player({
                     url: "https://tonejs.github.io/audio/drum-samples/CR78/tom.mp3",
-                    volume: -10,
+                    volume: -6,
                     onload: () => console.log("Tom loaded")
+                }).connect(this.beatChannel),
+                cymbal: new Tone.Player({
+                    url: "https://tonejs.github.io/audio/drum-samples/CR78/cymbal.mp3",
+                    volume: -10,
+                    onload: () => console.log("Cymbal loaded")
                 }).connect(this.beatChannel)
             };
 
@@ -67,6 +73,7 @@ class AudioEngine {
             console.error("Error initializing audio:", error);
             // Retry initialization after user interaction
             document.addEventListener('click', () => this.initializeAudio(), { once: true });
+            document.addEventListener('touchstart', () => this.initializeAudio(), { once: true });
         }
     }
 
@@ -92,6 +99,18 @@ class AudioEngine {
                 frequency: 1000,
                 type: "lowpass",
                 rolloff: -12
+            }).connect(this.effectsChannel),
+            phaser: new Tone.Phaser({
+                frequency: 15,
+                octaves: 5,
+                baseFrequency: 1000,
+                wet: 0.3
+            }).connect(this.effectsChannel),
+            chorus: new Tone.Chorus({
+                frequency: 1.5,
+                delayTime: 3.5,
+                depth: 0.7,
+                wet: 0.3
             }).connect(this.effectsChannel)
         };
     }
@@ -453,6 +472,79 @@ class AudioEngine {
 
     updateSynthType(type) {
         this.currentSynth = this.synths[type];
+    }
+
+    // Add new DJ-focused methods
+    async loadCustomSample(name, url) {
+        try {
+            const player = new Tone.Player({
+                url: url,
+                volume: -6,
+                onload: () => console.log(`${name} loaded`)
+            }).connect(this.beatChannel);
+            
+            await player.load();
+            this.drums[name] = player;
+            return true;
+        } catch (error) {
+            console.error(`Error loading sample ${name}:`, error);
+            return false;
+        }
+    }
+
+    createLoop(name, steps) {
+        const loop = new Tone.Sequence(
+            (time, step) => {
+                if (steps[step]) {
+                    const { note, velocity = 1 } = steps[step];
+                    if (this.drums[note]) {
+                        this.drums[note].volume.value = Tone.gainToDb(velocity);
+                        this.drums[note].start(time);
+                    }
+                }
+            },
+            Array.from({ length: 16 }, (_, i) => i),
+            "16n"
+        );
+        
+        this.loops = this.loops || {};
+        this.loops[name] = loop;
+        return loop;
+    }
+
+    toggleLoop(name) {
+        if (this.loops && this.loops[name]) {
+            if (this.loops[name].state === "started") {
+                this.loops[name].stop();
+            } else {
+                this.loops[name].start(0);
+            }
+        }
+    }
+
+    crossfade(source, target, duration = 1) {
+        const now = Tone.now();
+        source.volume.rampTo(-60, duration, now);
+        target.volume.rampTo(0, duration, now);
+    }
+
+    // Add beat slicing
+    sliceBeat(beat, slices = 4) {
+        const duration = beat.buffer.duration;
+        const sliceDuration = duration / slices;
+        
+        for (let i = 0; i < slices; i++) {
+            const startTime = i * sliceDuration;
+            beat.start(startTime);
+        }
+    }
+
+    // Add beat stuttering
+    stutterBeat(beat, rate = 0.1, duration = 0.5) {
+        const now = Tone.now();
+        for (let i = 0; i < duration / rate; i++) {
+            beat.start(now + i * rate);
+        }
     }
 }
 

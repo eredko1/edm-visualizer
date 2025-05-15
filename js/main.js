@@ -774,4 +774,186 @@ stylePresets.textContent = `
         }
     }
 `;
-document.head.appendChild(stylePresets); 
+document.head.appendChild(stylePresets);
+
+// Add DJ controls
+function initializeDJControls() {
+    const djControls = document.createElement('div');
+    djControls.className = 'dj-controls';
+    djControls.innerHTML = `
+        <div class="dj-section">
+            <h3>Beat Controls</h3>
+            <div class="beat-buttons">
+                <button class="beat-btn" data-drum="kick">Kick</button>
+                <button class="beat-btn" data-drum="snare">Snare</button>
+                <button class="beat-btn" data-drum="hihat">Hi-Hat</button>
+                <button class="beat-btn" data-drum="clap">Clap</button>
+                <button class="beat-btn" data-drum="tom">Tom</button>
+                <button class="beat-btn" data-drum="cymbal">Cymbal</button>
+            </div>
+        </div>
+        <div class="dj-section">
+            <h3>Effects</h3>
+            <div class="effect-buttons">
+                <button class="effect-btn" data-effect="slice">Slice</button>
+                <button class="effect-btn" data-effect="stutter">Stutter</button>
+                <button class="effect-btn" data-effect="reverse">Reverse</button>
+                <button class="effect-btn" data-effect="filter">Filter</button>
+            </div>
+        </div>
+        <div class="dj-section">
+            <h3>Loops</h3>
+            <div class="loop-buttons">
+                <button class="loop-btn" data-loop="basic">Basic</button>
+                <button class="loop-btn" data-loop="complex">Complex</button>
+                <button class="loop-btn" data-loop="random">Random</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(djControls);
+
+    // Add styles for DJ controls
+    const style = document.createElement('style');
+    style.textContent = `
+        .dj-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 15px;
+            display: flex;
+            gap: 20px;
+            z-index: 1000;
+        }
+
+        .dj-section {
+            text-align: center;
+        }
+
+        .dj-section h3 {
+            color: #fff;
+            margin-bottom: 10px;
+            font-size: 1em;
+        }
+
+        .beat-buttons, .effect-buttons, .loop-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .beat-btn, .effect-btn, .loop-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .beat-btn:hover, .effect-btn:hover, .loop-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+
+        .beat-btn.active, .effect-btn.active, .loop-btn.active {
+            background: #00ff88;
+            color: #000;
+        }
+
+        @media (max-width: 768px) {
+            .dj-controls {
+                bottom: 0;
+                left: 0;
+                right: 0;
+                transform: none;
+                border-radius: 15px 15px 0 0;
+                padding: 15px;
+                gap: 10px;
+            }
+
+            .dj-section h3 {
+                font-size: 0.9em;
+            }
+
+            .beat-btn, .effect-btn, .loop-btn {
+                padding: 8px;
+                font-size: 0.9em;
+            }
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Add event listeners for beat buttons
+    const beatButtons = document.querySelectorAll('.beat-btn');
+    beatButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const drum = btn.dataset.drum;
+            if (drum && audioEngine.drums[drum]) {
+                audioEngine.drums[drum].start();
+                btn.classList.add('active');
+                setTimeout(() => btn.classList.remove('active'), 100);
+            }
+        });
+
+        // Add touch events for mobile
+        btn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const drum = btn.dataset.drum;
+            if (drum && audioEngine.drums[drum]) {
+                audioEngine.drums[drum].start();
+                btn.classList.add('active');
+            }
+        });
+
+        btn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            btn.classList.remove('active');
+        });
+    });
+
+    // Add event listeners for effect buttons
+    const effectButtons = document.querySelectorAll('.effect-btn');
+    effectButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const effect = btn.dataset.effect;
+            switch (effect) {
+                case 'slice':
+                    audioEngine.sliceBeat(audioEngine.drums.kick);
+                    break;
+                case 'stutter':
+                    audioEngine.stutterBeat(audioEngine.drums.snare);
+                    break;
+                case 'reverse':
+                    // Implement reverse effect
+                    break;
+                case 'filter':
+                    // Toggle filter effect
+                    break;
+            }
+            btn.classList.add('active');
+            setTimeout(() => btn.classList.remove('active'), 100);
+        });
+    });
+
+    // Add event listeners for loop buttons
+    const loopButtons = document.querySelectorAll('.loop-btn');
+    loopButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const loop = btn.dataset.loop;
+            audioEngine.toggleLoop(loop);
+            btn.classList.toggle('active');
+        });
+    });
+}
+
+// Initialize DJ controls after audio is ready
+const checkAudioReady = setInterval(() => {
+    if (audioEngine && audioEngine.initialized) {
+        initializeDJControls();
+        clearInterval(checkAudioReady);
+    }
+}, 100); 
