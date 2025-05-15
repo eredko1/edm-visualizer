@@ -6,241 +6,270 @@ class AudioEngine {
         this.initializeBeatSequencer();
     }
 
-    initializeAudio() {
-        // Initialize Tone.js
-        this.masterVolume = new Tone.Volume(-10).toDestination();
-        this.mixer = new Tone.Gain(1).connect(this.masterVolume);
+    async initializeAudio() {
+        // Wait for user interaction before starting audio
+        await Tone.start();
         
-        // Create channels
+        // Create master volume and mixer
+        this.masterVolume = new Tone.Volume(-10).toDestination();
+        this.mixer = new Tone.Channel().connect(this.masterVolume);
+        
+        // Create channels for beats, synths, and effects
         this.beatChannel = new Tone.Channel().connect(this.mixer);
         this.synthChannel = new Tone.Channel().connect(this.mixer);
         this.effectsChannel = new Tone.Channel().connect(this.mixer);
+        
+        // Initialize drum samples
+        this.drums = {
+            kick: new Tone.Player({
+                url: "https://tonejs.github.io/audio/drum-samples/CR78/kick.mp3",
+                volume: -10
+            }).connect(this.beatChannel),
+            snare: new Tone.Player({
+                url: "https://tonejs.github.io/audio/drum-samples/CR78/snare.mp3",
+                volume: -8
+            }).connect(this.beatChannel),
+            hihat: new Tone.Player({
+                url: "https://tonejs.github.io/audio/drum-samples/CR78/hihat.mp3",
+                volume: -12
+            }).connect(this.beatChannel),
+            clap: new Tone.Player({
+                url: "https://tonejs.github.io/audio/drum-samples/CR78/clap.mp3",
+                volume: -8
+            }).connect(this.beatChannel),
+            tom: new Tone.Player({
+                url: "https://tonejs.github.io/audio/drum-samples/CR78/tom.mp3",
+                volume: -10
+            }).connect(this.beatChannel)
+        };
+
+        // Load all samples
+        await Promise.all(Object.values(this.drums).map(drum => drum.load()));
     }
 
     initializeEffects() {
-        // Reverb
-        this.reverb = new Tone.Reverb({
-            decay: 4,
-            wet: 0.3
-        }).connect(this.effectsChannel);
-
-        // Delay
-        this.delay = new Tone.FeedbackDelay({
-            delayTime: 0.25,
-            feedback: 0.3,
-            wet: 0.2
-        }).connect(this.effectsChannel);
-
-        // Distortion
-        this.distortion = new Tone.Distortion({
-            distortion: 0.1,
-            wet: 0.1
-        }).connect(this.effectsChannel);
-
-        // Filter
-        this.filter = new Tone.Filter({
-            frequency: 1000,
-            type: "lowpass"
-        }).connect(this.effectsChannel);
+        // Create effects chain
+        this.effects = {
+            reverb: new Tone.Reverb({
+                decay: 2.5,
+                wet: 0.3
+            }).connect(this.effectsChannel),
+            delay: new Tone.FeedbackDelay({
+                delayTime: 0.25,
+                feedback: 0.4,
+                wet: 0.2
+            }).connect(this.effectsChannel),
+            distortion: new Tone.Distortion({
+                distortion: 0.4,
+                wet: 0.1
+            }).connect(this.effectsChannel),
+            filter: new Tone.Filter({
+                frequency: 1000,
+                type: "lowpass"
+            }).connect(this.effectsChannel)
+        };
     }
 
     initializeSynths() {
-        // Basic synth
-        this.synth = new Tone.PolySynth(Tone.Synth, {
-            oscillator: {
-                type: "sine"
-            },
-            envelope: {
-                attack: 0.1,
-                decay: 0.2,
-                sustain: 0.5,
-                release: 0.8
-            }
-        }).connect(this.filter);
+        // Create different synth types
+        this.synths = {
+            basic: new Tone.PolySynth(Tone.Synth, {
+                oscillator: {
+                    type: "sine"
+                },
+                envelope: {
+                    attack: 0.1,
+                    decay: 0.2,
+                    sustain: 0.5,
+                    release: 0.8
+                }
+            }).connect(this.synthChannel),
+            
+            fm: new Tone.PolySynth(Tone.FMSynth, {
+                harmonicity: 3,
+                modulationIndex: 10,
+                oscillator: {
+                    type: "sine"
+                },
+                envelope: {
+                    attack: 0.1,
+                    decay: 0.2,
+                    sustain: 0.5,
+                    release: 0.8
+                },
+                modulation: {
+                    type: "square"
+                },
+                modulationEnvelope: {
+                    attack: 0.5,
+                    decay: 0.1,
+                    sustain: 0.2,
+                    release: 0.1
+                }
+            }).connect(this.synthChannel),
+            
+            am: new Tone.PolySynth(Tone.AMSynth, {
+                harmonicity: 3,
+                detune: 0,
+                oscillator: {
+                    type: "sine"
+                },
+                envelope: {
+                    attack: 0.1,
+                    decay: 0.2,
+                    sustain: 0.5,
+                    release: 0.8
+                },
+                modulation: {
+                    type: "square"
+                },
+                modulationEnvelope: {
+                    attack: 0.5,
+                    decay: 0.1,
+                    sustain: 0.2,
+                    release: 0.1
+                }
+            }).connect(this.synthChannel),
+            
+            membrane: new Tone.PolySynth(Tone.MembraneSynth, {
+                pitchDecay: 0.05,
+                octaves: 2,
+                oscillator: {
+                    type: "sine"
+                },
+                envelope: {
+                    attack: 0.01,
+                    decay: 0.2,
+                    sustain: 0.2,
+                    release: 1
+                }
+            }).connect(this.synthChannel)
+        };
 
-        // FM synth for more complex sounds
-        this.fmSynth = new Tone.FMSynth({
-            harmonicity: 3,
-            modulationIndex: 10,
-            oscillator: {
-                type: "sine"
-            },
-            envelope: {
-                attack: 0.1,
-                decay: 0.2,
-                sustain: 0.5,
-                release: 0.8
-            },
-            modulation: {
-                type: "square"
-            },
-            modulationEnvelope: {
-                attack: 0.5,
-                decay: 0.2,
-                sustain: 0.5,
-                release: 0.8
-            }
-        }).connect(this.filter);
-
-        // AM synth for metallic sounds
-        this.amSynth = new Tone.AMSynth({
-            harmonicity: 3,
-            detune: 0,
-            oscillator: {
-                type: "sine"
-            },
-            envelope: {
-                attack: 0.1,
-                decay: 0.2,
-                sustain: 0.5,
-                release: 0.8
-            },
-            modulation: {
-                type: "square"
-            },
-            modulationEnvelope: {
-                attack: 0.5,
-                decay: 0.2,
-                sustain: 0.5,
-                release: 0.8
-            }
-        }).connect(this.filter);
-
-        // Membrane synth for drum-like sounds
-        this.membraneSynth = new Tone.MembraneSynth({
-            pitchDecay: 0.05,
-            octaves: 2,
-            oscillator: {
-                type: "sine"
-            },
-            envelope: {
-                attack: 0.01,
-                decay: 0.2,
-                sustain: 0.2,
-                release: 1.4,
-                attackCurve: "exponential"
-            }
-        }).connect(this.filter);
+        this.currentSynth = this.synths.basic;
     }
 
     initializeBeatSequencer() {
         this.bpm = 128;
         this.beatVolume = 0.5;
-        this.currentPattern = 'house';
-        this.isPlaying = false;
-
+        this.currentPattern = "house";
+        
         // Define beat patterns
         this.patterns = {
             house: {
-                name: "House",
                 bpm: 128,
                 steps: [
-                    { note: "C2", time: "0:0" },
-                    { note: "E2", time: "0:1" },
-                    { note: "G2", time: "0:2" },
-                    { note: "E2", time: "0:3" },
-                    { note: "C2", time: "1:0" },
-                    { note: "E2", time: "1:1" },
-                    { note: "G2", time: "1:2" },
-                    { note: "E2", time: "1:3" }
+                    { time: "0:0", note: "kick" },
+                    { time: "0:2", note: "snare" },
+                    { time: "1:0", note: "kick" },
+                    { time: "1:2", note: "snare" },
+                    { time: "2:0", note: "kick" },
+                    { time: "2:2", note: "snare" },
+                    { time: "3:0", note: "kick" },
+                    { time: "3:2", note: "snare" }
                 ]
             },
             techno: {
-                name: "Techno",
                 bpm: 130,
                 steps: [
-                    { note: "C2", time: "0:0" },
-                    { note: "E2", time: "0:1" },
-                    { note: "G2", time: "0:2" },
-                    { note: "E2", time: "0:3" },
-                    { note: "C2", time: "1:0" },
-                    { note: "E2", time: "1:1" },
-                    { note: "G2", time: "1:2" },
-                    { note: "E2", time: "1:3" }
+                    { time: "0:0", note: "kick" },
+                    { time: "0:2", note: "hihat" },
+                    { time: "1:0", note: "kick" },
+                    { time: "1:2", note: "hihat" },
+                    { time: "2:0", note: "kick" },
+                    { time: "2:2", note: "hihat" },
+                    { time: "3:0", note: "kick" },
+                    { time: "3:2", note: "hihat" }
                 ]
             },
             dubstep: {
-                name: "Dubstep",
                 bpm: 140,
                 steps: [
-                    { note: "C2", time: "0:0" },
-                    { note: "E2", time: "0:1" },
-                    { note: "G2", time: "0:2" },
-                    { note: "E2", time: "0:3" },
-                    { note: "C2", time: "1:0" },
-                    { note: "E2", time: "1:1" },
-                    { note: "G2", time: "1:2" },
-                    { note: "E2", time: "1:3" }
+                    { time: "0:0", note: "kick" },
+                    { time: "0:3", note: "snare" },
+                    { time: "1:0", note: "kick" },
+                    { time: "1:2", note: "hihat" },
+                    { time: "2:0", note: "kick" },
+                    { time: "2:3", note: "snare" },
+                    { time: "3:0", note: "kick" },
+                    { time: "3:2", note: "hihat" }
                 ]
             },
             trance: {
-                name: "Trance",
                 bpm: 138,
                 steps: [
-                    { note: "C2", time: "0:0" },
-                    { note: "E2", time: "0:1" },
-                    { note: "G2", time: "0:2" },
-                    { note: "E2", time: "0:3" },
-                    { note: "C2", time: "1:0" },
-                    { note: "E2", time: "1:1" },
-                    { note: "G2", time: "1:2" },
-                    { note: "E2", time: "1:3" }
+                    { time: "0:0", note: "kick" },
+                    { time: "0:2", note: "hihat" },
+                    { time: "1:0", note: "kick" },
+                    { time: "1:2", note: "hihat" },
+                    { time: "2:0", note: "kick" },
+                    { time: "2:2", note: "hihat" },
+                    { time: "3:0", note: "kick" },
+                    { time: "3:2", note: "hihat" }
                 ]
             },
             drumandbass: {
-                name: "Drum & Bass",
                 bpm: 174,
                 steps: [
-                    { note: "C2", time: "0:0" },
-                    { note: "E2", time: "0:1" },
-                    { note: "G2", time: "0:2" },
-                    { note: "E2", time: "0:3" },
-                    { note: "C2", time: "1:0" },
-                    { note: "E2", time: "1:1" },
-                    { note: "G2", time: "1:2" },
-                    { note: "E2", time: "1:3" }
+                    { time: "0:0", note: "kick" },
+                    { time: "0:1", note: "hihat" },
+                    { time: "0:2", note: "snare" },
+                    { time: "0:3", note: "hihat" },
+                    { time: "1:0", note: "kick" },
+                    { time: "1:1", note: "hihat" },
+                    { time: "1:2", note: "snare" },
+                    { time: "1:3", note: "hihat" }
                 ]
             },
             hardstyle: {
-                name: "Hardstyle",
                 bpm: 150,
                 steps: [
-                    { note: "C2", time: "0:0" },
-                    { note: "E2", time: "0:1" },
-                    { note: "G2", time: "0:2" },
-                    { note: "E2", time: "0:3" },
-                    { note: "C2", time: "1:0" },
-                    { note: "E2", time: "1:1" },
-                    { note: "G2", time: "1:2" },
-                    { note: "E2", time: "1:3" }
+                    { time: "0:0", note: "kick" },
+                    { time: "0:1", note: "kick" },
+                    { time: "0:2", note: "snare" },
+                    { time: "1:0", note: "kick" },
+                    { time: "1:1", note: "kick" },
+                    { time: "1:2", note: "snare" },
+                    { time: "2:0", note: "kick" },
+                    { time: "2:1", note: "kick" },
+                    { time: "2:2", note: "snare" },
+                    { time: "3:0", note: "kick" },
+                    { time: "3:1", note: "kick" },
+                    { time: "3:2", note: "snare" }
                 ]
             },
             progressive: {
-                name: "Progressive",
                 bpm: 126,
                 steps: [
-                    { note: "C2", time: "0:0" },
-                    { note: "E2", time: "0:1" },
-                    { note: "G2", time: "0:2" },
-                    { note: "E2", time: "0:3" },
-                    { note: "C2", time: "1:0" },
-                    { note: "E2", time: "1:1" },
-                    { note: "G2", time: "1:2" },
-                    { note: "E2", time: "1:3" }
+                    { time: "0:0", note: "kick" },
+                    { time: "0:2", note: "snare" },
+                    { time: "0:3", note: "hihat" },
+                    { time: "1:0", note: "kick" },
+                    { time: "1:2", note: "snare" },
+                    { time: "1:3", note: "hihat" },
+                    { time: "2:0", note: "kick" },
+                    { time: "2:2", note: "snare" },
+                    { time: "2:3", note: "hihat" },
+                    { time: "3:0", note: "kick" },
+                    { time: "3:2", note: "snare" },
+                    { time: "3:3", note: "hihat" }
                 ]
             },
             futurebass: {
-                name: "Future Bass",
                 bpm: 150,
                 steps: [
-                    { note: "C2", time: "0:0" },
-                    { note: "E2", time: "0:1" },
-                    { note: "G2", time: "0:2" },
-                    { note: "E2", time: "0:3" },
-                    { note: "C2", time: "1:0" },
-                    { note: "E2", time: "1:1" },
-                    { note: "G2", time: "1:2" },
-                    { note: "E2", time: "1:3" }
+                    { time: "0:0", note: "kick" },
+                    { time: "0:2", note: "snare" },
+                    { time: "0:3", note: "hihat" },
+                    { time: "1:0", note: "kick" },
+                    { time: "1:2", note: "snare" },
+                    { time: "1:3", note: "hihat" },
+                    { time: "2:0", note: "kick" },
+                    { time: "2:2", note: "snare" },
+                    { time: "2:3", note: "hihat" },
+                    { time: "3:0", note: "kick" },
+                    { time: "3:2", note: "snare" },
+                    { time: "3:3", note: "hihat" }
                 ]
             }
         };
@@ -248,104 +277,69 @@ class AudioEngine {
         // Create sequencer
         this.sequencer = new Tone.Sequence(
             (time, step) => {
-                const pattern = this.patterns[this.currentPattern];
-                if (pattern && pattern.steps[step]) {
-                    const note = pattern.steps[step].note;
-                    this.membraneSynth.triggerAttackRelease(note, "16n", time);
+                if (this.patterns[this.currentPattern].steps[step]) {
+                    const { note } = this.patterns[this.currentPattern].steps[step];
+                    this.drums[note].start(time);
                 }
             },
-            [0, 1, 2, 3, 4, 5, 6, 7],
+            Array.from({ length: 16 }, (_, i) => i),
             "16n"
         );
+
+        // Set initial BPM
+        Tone.Transport.bpm.value = this.bpm;
     }
 
-    // Play a note
     playNote(note) {
-        this.synth.triggerAttackRelease(note, "8n");
+        this.currentSynth.triggerAttackRelease(note, "8n");
     }
 
-    // Toggle beat sequencer
+    stopNote() {
+        this.currentSynth.releaseAll();
+    }
+
     toggleBeat() {
-        if (this.isPlaying) {
+        if (this.sequencer.state === "started") {
             this.sequencer.stop();
-            this.isPlaying = false;
+            Tone.Transport.stop();
         } else {
-            this.sequencer.start();
-            this.isPlaying = true;
+            this.sequencer.start(0);
+            Tone.Transport.start();
         }
     }
 
-    // Change beat pattern
     changePattern(pattern) {
         this.currentPattern = pattern;
-        if (this.isPlaying) {
-            this.sequencer.stop();
-            this.sequencer.start();
-        }
+        this.bpm = this.patterns[pattern].bpm;
+        Tone.Transport.bpm.value = this.bpm;
     }
 
-    // Update BPM
-    updateBPM(bpm) {
-        this.bpm = bpm;
-        Tone.Transport.bpm.value = bpm;
+    updateBPM(value) {
+        this.bpm = value;
+        Tone.Transport.bpm.value = value;
     }
 
-    // Update beat volume
-    updateBeatVolume(volume) {
-        this.beatVolume = volume;
-        this.beatChannel.volume.value = Tone.gainToDb(volume);
+    updateBeatVolume(value) {
+        this.beatVolume = value;
+        this.beatChannel.volume.value = Tone.gainToDb(value);
     }
 
-    // Update synth envelope
     updateSynthEnvelope(param, value) {
-        this.synth.set({ envelope: { [param]: value } });
-        this.fmSynth.set({ envelope: { [param]: value } });
-        this.amSynth.set({ envelope: { [param]: value } });
+        Object.values(this.synths).forEach(synth => {
+            synth.set({ envelope: { [param]: value } });
+        });
     }
 
-    // Update effects
     updateEffect(effect, value) {
-        switch(effect) {
-            case 'reverb':
-                this.reverb.set({ wet: value });
-                break;
-            case 'delay':
-                this.delay.set({ wet: value });
-                break;
-            case 'distortion':
-                this.distortion.set({ wet: value });
-                break;
-        }
+        this.effects[effect].wet.value = value;
     }
 
-    // Update filter
-    updateFilter(frequency) {
-        this.filter.set({ frequency: frequency });
+    updateFilter(value) {
+        this.effects.filter.frequency.value = value;
     }
 
-    // Update synth type
     updateSynthType(type) {
-        // Disconnect current synth
-        this.synth.disconnect();
-        this.fmSynth.disconnect();
-        this.amSynth.disconnect();
-        this.membraneSynth.disconnect();
-
-        // Connect new synth
-        switch(type) {
-            case 'synth':
-                this.synth.connect(this.filter);
-                break;
-            case 'fm':
-                this.fmSynth.connect(this.filter);
-                break;
-            case 'am':
-                this.amSynth.connect(this.filter);
-                break;
-            case 'membrane':
-                this.membraneSynth.connect(this.filter);
-                break;
-        }
+        this.currentSynth = this.synths[type];
     }
 }
 

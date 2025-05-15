@@ -498,4 +498,127 @@ h3 i {
     .controls-panel {
         padding-bottom: calc(20px + env(safe-area-inset-bottom));
     }
+}
+
+/* Beat Buttons */
+.beat-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.beat-btn {
+    background: rgba(0, 255, 136, 0.2);
+    border: 2px solid #00ff88;
+    color: #fff;
+    padding: 12px;
+    border-radius: 10px;
+    font-size: 1.1em;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.beat-btn:active {
+    background: #00ff88;
+    color: #000;
+    transform: scale(0.95);
+}
+
+.beat-btn i {
+    font-size: 1.2em;
+}
+
+/* Quick Beat Patterns */
+.quick-beats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.quick-beat-btn {
+    background: rgba(0, 136, 255, 0.2);
+    border: 2px solid #0088ff;
+    color: #fff;
+    padding: 15px;
+    border-radius: 10px;
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.quick-beat-btn:active {
+    background: #0088ff;
+    color: #000;
+    transform: scale(0.95);
+}
+
+.quick-beat-btn i {
+    font-size: 1.3em;
+}
+
+/* Mobile Beat Pad Enhancements */
+.mobile-beat-pad {
+    background: rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+}
+
+.mobile-beat-pad .beat-pad {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.2s;
+}
+
+.mobile-beat-pad .beat-pad:active {
+    background: #00ff88;
+    border-color: #00ff88;
+    transform: scale(0.95);
+}
+
+/* Mobile Responsive Enhancements */
+@media (max-width: 768px) {
+    .beat-buttons {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .quick-beats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .beat-btn, .quick-beat-btn {
+        font-size: 1em;
+        padding: 10px;
+    }
+
+    .mobile-beat-pad {
+        width: 95%;
+        padding: 10px;
+    }
+
+    .mobile-beat-pad .beat-pad {
+        height: 50px;
+    }
+}
+
+/* iOS-specific Enhancements */
+@supports (-webkit-touch-callout: none) {
+    .beat-btn, .quick-beat-btn {
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .mobile-beat-pad {
+        padding-bottom: calc(15px + env(safe-area-inset-bottom));
+    }
 } 

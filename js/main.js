@@ -315,6 +315,38 @@ function initializeMobileControls() {
         });
     });
 
+    // Handle beat buttons
+    const beatButtons = document.querySelectorAll('.beat-btn');
+    beatButtons.forEach(btn => {
+        btn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const drum = btn.dataset.drum;
+            if (drum && audioEngine.drums[drum]) {
+                audioEngine.drums[drum].start();
+                btn.classList.add('active');
+            }
+        });
+
+        btn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            btn.classList.remove('active');
+        });
+    });
+
+    // Handle quick beat patterns
+    const quickBeatButtons = document.querySelectorAll('.quick-beat-btn');
+    quickBeatButtons.forEach(btn => {
+        btn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const pattern = btn.dataset.pattern;
+            if (pattern) {
+                audioEngine.changePattern(pattern);
+                quickBeatButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            }
+        });
+    });
+
     // Handle touch events for pattern buttons
     const patternButtons = document.querySelectorAll('.pattern-btn');
     patternButtons.forEach(btn => {
