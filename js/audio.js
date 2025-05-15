@@ -8,6 +8,9 @@ class AudioEngine {
         this.effects = null;
         this.drums = null;
         this.currentSynth = null;
+        this.isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        this.isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        this.isAndroid = /Android/i.test(navigator.userAgent);
     }
 
     async initializeAudio() {
@@ -15,19 +18,67 @@ class AudioEngine {
             console.log("Starting audio initialization...");
             this.loadingState = 'starting_tone';
             
-            // Start Tone.js with explicit user interaction
+            // Force unlock audio context on iOS/Android with better handling
+            if (this.isMobile) {
+                try {
+                    // Create and play a silent buffer with better mobile compatibility
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                        latencyHint: 'interactive',
+                        sampleRate: 44100
+                    });
+                    
+                    // Create a silent buffer
+                    const buffer = audioContext.createBuffer(1, 1, 22050);
+                    const source = audioContext.createBufferSource();
+                    source.buffer = buffer;
+                    source.connect(audioContext.destination);
+                    
+                    // Start the source and resume context
+                    source.start(0);
+                    if (audioContext.state !== 'running') {
+                        await audioContext.resume();
+                    }
+                    
+                    // Clean up
+                    source.disconnect();
+                    audioContext.close();
+                } catch (error) {
+                    console.warn("Silent buffer initialization failed:", error);
+                }
+            }
+            
+            // Start Tone.js with explicit user interaction and mobile optimization
             await Tone.start();
             console.log("Tone.js started successfully");
             
             this.loadingState = 'creating_context';
             // Create audio context with better mobile compatibility
             this.context = new Tone.Context({
-                latencyHint: 'interactive',
+                latencyHint: this.isMobile ? 'playback' : 'interactive',
                 sampleRate: 44100,
-                lookAhead: 0.1
+                lookAhead: this.isMobile ? 0.5 : 0.1
             });
             Tone.setContext(this.context);
             console.log("Audio context created");
+            
+            // Set mobile-optimized settings
+            if (this.isMobile) {
+                Tone.context.latencyHint = 'playback';
+                Tone.context.lookAhead = 0.5;
+                Tone.Transport.lag = 0.2;
+                
+                // Additional iOS-specific optimizations
+                if (this.isIOS) {
+                    Tone.context.lookAhead = 0.8;
+                    Tone.Transport.lag = 0.3;
+                }
+                
+                // Additional Android-specific optimizations
+                if (this.isAndroid) {
+                    Tone.context.lookAhead = 0.6;
+                    Tone.Transport.lag = 0.25;
+                }
+            }
             
             this.loadingState = 'creating_mixer';
             // Create master volume and mixer with better control
@@ -48,35 +99,73 @@ class AudioEngine {
             console.log("Synths initialized");
             
             this.loadingState = 'loading_samples';
-            // Initialize drum samples with better quality samples
+            // Initialize drum samples with better quality samples and mobile optimization
             this.drums = {
                 kick: new Tone.Player({
                     url: "https://tonejs.github.io/audio/drum-samples/CR78/kick.mp3",
                     volume: -6,
-                    onload: () => console.log("Kick loaded")
+                    onload: () => console.log("Kick loaded"),
+                    onerror: (error) => console.error("Error loading kick:", error)
                 }).connect(this.beatChannel),
                 snare: new Tone.Player({
                     url: "https://tonejs.github.io/audio/drum-samples/CR78/snare.mp3",
                     volume: -4,
-                    onload: () => console.log("Snare loaded")
+                    onload: () => console.log("Snare loaded"),
+                    onerror: (error) => console.error("Error loading snare:", error)
                 }).connect(this.beatChannel),
                 hihat: new Tone.Player({
                     url: "https://tonejs.github.io/audio/drum-samples/CR78/hihat.mp3",
                     volume: -8,
-                    onload: () => console.log("Hihat loaded")
+                    onload: () => console.log("Hihat loaded"),
+                    onerror: (error) => console.error("Error loading hihat:", error)
                 }).connect(this.beatChannel)
             };
 
-            // Load all samples with timeout
+            // Load all samples with timeout and retry mechanism
             this.loadingState = 'waiting_for_samples';
             console.log("Loading drum samples...");
-            await Promise.race([
-                Promise.all(Object.values(this.drums).map(drum => drum.load())),
-                new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error("Sample loading timeout")), 10000)
-                )
-            ]);
-            console.log("All samples loaded successfully");
+            let retryCount = 0;
+            const maxRetries = 3;
+            const timeoutDuration = this.isMobile ? 15000 : 10000; // Longer timeout for mobile
+            
+            while (retryCount < maxRetries) {
+                try {
+                    await Promise.race([
+                        Promise.all(Object.values(this.drums).map(drum => drum.load())),
+                        new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error("Sample loading timeout")), timeoutDuration)
+                        )
+                    ]);
+                    console.log("All samples loaded successfully");
+                    break;
+                } catch (error) {
+                    retryCount++;
+                    console.warn(`Sample loading attempt ${retryCount} failed:`, error);
+                    
+                    // If we're on mobile and the error is network-related, wait longer
+                    if (this.isMobile && error.message.includes("timeout")) {
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    } else {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                    
+                    if (retryCount === maxRetries) {
+                        // On mobile, try to load lower quality samples as fallback
+                        if (this.isMobile) {
+                            console.log("Attempting to load mobile-optimized samples...");
+                            try {
+                                await this.loadMobileFallbackSamples();
+                                break;
+                            } catch (fallbackError) {
+                                console.error("Fallback sample loading failed:", fallbackError);
+                                throw error;
+                            }
+                        } else {
+                            throw error;
+                        }
+                    }
+                }
+            }
 
             this.loadingState = 'initializing_effects';
             // Initialize effects after samples are loaded
@@ -481,6 +570,34 @@ class AudioEngine {
         const now = Tone.now();
         for (let i = 0; i < duration / rate; i++) {
             beat.start(now + i * rate);
+        }
+    }
+
+    // Add method for loading mobile-optimized samples
+    async loadMobileFallbackSamples() {
+        const mobileSamples = {
+            kick: "https://tonejs.github.io/audio/drum-samples/CR78/kick.mp3",
+            snare: "https://tonejs.github.io/audio/drum-samples/CR78/snare.mp3",
+            hihat: "https://tonejs.github.io/audio/drum-samples/CR78/hihat.mp3"
+        };
+
+        for (const [name, url] of Object.entries(mobileSamples)) {
+            try {
+                const response = await fetch(url);
+                const arrayBuffer = await response.arrayBuffer();
+                const audioBuffer = await Tone.context.decodeAudioData(arrayBuffer);
+                
+                // Create a new player with the decoded buffer
+                this.drums[name] = new Tone.Player({
+                    buffer: audioBuffer,
+                    volume: name === 'kick' ? -6 : name === 'snare' ? -4 : -8,
+                    onload: () => console.log(`${name} loaded (mobile optimized)`),
+                    onerror: (error) => console.error(`Error loading ${name}:`, error)
+                }).connect(this.beatChannel);
+            } catch (error) {
+                console.error(`Error loading mobile sample ${name}:`, error);
+                throw error;
+            }
         }
     }
 }

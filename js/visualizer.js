@@ -15,7 +15,15 @@ class Visualizer {
             iterations: 100,
             zoom: 1,
             offsetX: 0,
-            offsetY: 0
+            offsetY: 0,
+            colorOffset: 0
+        };
+        
+        this.tunnelParams = {
+            segments: 20,
+            rotationSpeed: 0.01,
+            depth: 1000,
+            colorOffset: 0
         };
         
         this.colors = {
@@ -58,17 +66,14 @@ class Visualizer {
         return scheme[Math.floor(Math.random() * scheme.length)];
     }
     
-    animate(currentTime = 0) {
-        requestAnimationFrame((time) => this.animate(time));
-        
-        // Limit frame rate for better performance
-        if (currentTime - this.lastTime < 1000 / 60) return;
-        this.lastTime = currentTime;
+    animate() {
+        const now = performance.now();
+        const deltaTime = now - this.lastTime;
+        this.lastTime = now;
         
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
         const waveform = this.analyser.getValue();
-        if (!waveform || waveform.length === 0) return;
         
         switch (this.vizType) {
             case 'particles':
@@ -83,24 +88,19 @@ class Visualizer {
             case 'circular':
                 this.drawCircular(waveform);
                 break;
-            case 'matrix':
-                this.drawMatrix(waveform);
-                break;
-            case 'vortex':
-                this.drawVortex(waveform);
-                break;
-            case 'fractal':
-                this.drawFractal(waveform);
+            case 'mandelbrot':
+                this.drawMandelbrot(waveform);
                 break;
             case 'julia':
                 this.drawJulia(waveform);
                 break;
-            case 'burningship':
-                this.drawBurningShip(waveform);
+            case 'lighttunnel':
+                this.drawLightTunnel(waveform);
                 break;
         }
         
         this.frameCount++;
+        requestAnimationFrame(() => this.animate());
     }
     
     drawParticles(waveform) {
@@ -185,51 +185,7 @@ class Visualizer {
         this.ctx.stroke();
     }
     
-    drawMatrix(waveform) {
-        const cols = 20;
-        const rows = 10;
-        const cellWidth = this.canvas.width / cols;
-        const cellHeight = this.canvas.height / rows;
-        
-        for (let i = 0; i < cols; i++) {
-            for (let j = 0; j < rows; j++) {
-                const index = Math.floor((i * rows + j) / (cols * rows) * waveform.length);
-                const value = Math.abs(waveform[index]);
-                
-                this.ctx.fillStyle = `rgba(0, 255, 136, ${value})`;
-                this.ctx.fillRect(
-                    i * cellWidth,
-                    j * cellHeight,
-                    cellWidth - 2,
-                    cellHeight - 2
-                );
-            }
-        }
-    }
-    
-    drawVortex(waveform) {
-        const centerX = this.canvas.width / 2;
-        const centerY = this.canvas.height / 2;
-        const maxRadius = Math.min(centerX, centerY) * 0.8;
-        
-        for (let i = 0; i < waveform.length; i++) {
-            const angle = (i / waveform.length) * Math.PI * 2;
-            const radius = (i / waveform.length) * maxRadius;
-            const value = Math.abs(waveform[i]);
-            
-            const x = centerX + Math.cos(angle + this.frameCount * 0.02) * radius;
-            const y = centerY + Math.sin(angle + this.frameCount * 0.02) * radius;
-            
-            this.ctx.beginPath();
-            this.ctx.arc(x, y, value * 5, 0, Math.PI * 2);
-            this.ctx.fillStyle = this.getRandomColor();
-            this.ctx.fill();
-        }
-        
-        this.frameCount++;
-    }
-    
-    drawFractal(waveform) {
+    drawMandelbrot(waveform) {
         const centerX = this.canvas.width / 2;
         const centerY = this.canvas.height / 2;
         const scale = Math.min(centerX, centerY) * this.fractalParams.zoom;
@@ -251,7 +207,7 @@ class Visualizer {
                 }
                 
                 if (i < iterations) {
-                    const hue = (i / iterations) * 360;
+                    const hue = (i / iterations) * 360 + this.fractalParams.colorOffset;
                     this.ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
                     this.ctx.fillRect(x, y, 2, 2);
                 }
@@ -260,8 +216,9 @@ class Visualizer {
         
         // Update fractal parameters based on audio
         this.fractalParams.zoom = 1 + average * 0.5;
-        this.fractalParams.offsetX = Math.sin(this.frameCount * 0.01) * 0.5;
-        this.fractalParams.offsetY = Math.cos(this.frameCount * 0.01) * 0.5;
+        this.fractalParams.offsetX = Math.sin(this.frameCount * 0.03) * 0.5;
+        this.fractalParams.offsetY = Math.cos(this.frameCount * 0.03) * 0.5;
+        this.fractalParams.colorOffset = (this.fractalParams.colorOffset + 1) % 360;
     }
     
     drawJulia(waveform) {
@@ -272,7 +229,7 @@ class Visualizer {
         const average = waveform.reduce((a, b) => a + Math.abs(b), 0) / waveform.length;
         const iterations = Math.floor(this.fractalParams.iterations * (1 + average));
         
-        // Julia set parameters based on audio
+        // Julia set parameters that change with audio
         const cReal = Math.sin(this.frameCount * 0.01) * 0.4;
         const cImag = Math.cos(this.frameCount * 0.01) * 0.4;
         
@@ -290,42 +247,7 @@ class Visualizer {
                 }
                 
                 if (i < iterations) {
-                    const hue = (i / iterations) * 360;
-                    this.ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
-                    this.ctx.fillRect(x, y, 2, 2);
-                }
-            }
-        }
-        
-        // Update fractal parameters based on audio
-        this.fractalParams.zoom = 1 + average * 0.5;
-        this.fractalParams.offsetX = Math.sin(this.frameCount * 0.02) * 0.5;
-        this.fractalParams.offsetY = Math.cos(this.frameCount * 0.02) * 0.5;
-    }
-    
-    drawBurningShip(waveform) {
-        const centerX = this.canvas.width / 2;
-        const centerY = this.canvas.height / 2;
-        const scale = Math.min(centerX, centerY) * this.fractalParams.zoom;
-        
-        const average = waveform.reduce((a, b) => a + Math.abs(b), 0) / waveform.length;
-        const iterations = Math.floor(this.fractalParams.iterations * (1 + average));
-        
-        for (let x = 0; x < this.canvas.width; x += 2) {
-            for (let y = 0; y < this.canvas.height; y += 2) {
-                let zx = (x - centerX) / scale + this.fractalParams.offsetX;
-                let zy = (y - centerY) / scale + this.fractalParams.offsetY;
-                let i = 0;
-                
-                while (zx * zx + zy * zy < 4 && i < iterations) {
-                    const xtemp = zx * zx - zy * zy;
-                    zy = Math.abs(2 * zx * zy);
-                    zx = Math.abs(xtemp);
-                    i++;
-                }
-                
-                if (i < iterations) {
-                    const hue = (i / iterations) * 360;
+                    const hue = (i / iterations) * 360 + this.fractalParams.colorOffset;
                     this.ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
                     this.ctx.fillRect(x, y, 2, 2);
                 }
@@ -336,6 +258,44 @@ class Visualizer {
         this.fractalParams.zoom = 1 + average * 0.5;
         this.fractalParams.offsetX = Math.sin(this.frameCount * 0.03) * 0.5;
         this.fractalParams.offsetY = Math.cos(this.frameCount * 0.03) * 0.5;
+        this.fractalParams.colorOffset = (this.fractalParams.colorOffset + 1) % 360;
+    }
+    
+    drawLightTunnel(waveform) {
+        const centerX = this.canvas.width / 2;
+        const centerY = this.canvas.height / 2;
+        const maxRadius = Math.min(centerX, centerY);
+        
+        const average = waveform.reduce((a, b) => a + Math.abs(b), 0) / waveform.length;
+        const segments = this.tunnelParams.segments;
+        const rotationSpeed = this.tunnelParams.rotationSpeed * (1 + average);
+        
+        for (let i = 0; i < segments; i++) {
+            const angle = (i / segments) * Math.PI * 2 + this.frameCount * rotationSpeed;
+            const radius = maxRadius * (1 - i / segments) * (1 + average * 0.2);
+            
+            const x1 = centerX + Math.cos(angle) * radius;
+            const y1 = centerY + Math.sin(angle) * radius;
+            const x2 = centerX + Math.cos(angle + Math.PI * 2 / segments) * radius;
+            const y2 = centerY + Math.sin(angle + Math.PI * 2 / segments) * radius;
+            
+            // Create gradient for tunnel segments
+            const gradient = this.ctx.createLinearGradient(x1, y1, x2, y2);
+            const hue = (i / segments * 360 + this.tunnelParams.colorOffset) % 360;
+            gradient.addColorStop(0, `hsla(${hue}, 100%, 50%, 0.8)`);
+            gradient.addColorStop(1, `hsla(${hue}, 100%, 50%, 0.2)`);
+            
+            this.ctx.beginPath();
+            this.ctx.moveTo(x1, y1);
+            this.ctx.lineTo(x2, y2);
+            this.ctx.lineTo(centerX, centerY);
+            this.ctx.closePath();
+            this.ctx.fillStyle = gradient;
+            this.ctx.fill();
+        }
+        
+        // Update tunnel parameters
+        this.tunnelParams.colorOffset = (this.tunnelParams.colorOffset + 2) % 360;
     }
     
     updateParticleCount(count) {
@@ -357,5 +317,9 @@ class Visualizer {
     
     updateFractalParams(params) {
         this.fractalParams = { ...this.fractalParams, ...params };
+    }
+    
+    updateTunnelParams(params) {
+        this.tunnelParams = { ...this.tunnelParams, ...params };
     }
 } 

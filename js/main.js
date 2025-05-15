@@ -241,6 +241,12 @@ function initializeSliders() {
                 case 'vizSpeed':
                     updateVisualizationSpeed(value);
                     break;
+                case 'fractalZoom':
+                    updateFractalZoom(value);
+                    break;
+                case 'tunnelSpeed':
+                    updateTunnelSpeed(value);
+                    break;
             }
         });
     });
@@ -364,98 +370,123 @@ function initializeMobileControls() {
         });
     }
 
-    // Handle touch events for beat pads
+    // Handle touch events for beat pads with better mobile handling
     const beatPads = document.querySelectorAll('.beat-pad');
     beatPads.forEach(pad => {
+        let touchTimeout;
+        
         pad.addEventListener('touchstart', (e) => {
             e.preventDefault();
             const note = pad.dataset.note;
-            if (note) {
+            if (note && audioEngine?.initialized) {
                 audioEngine.playNote(note);
                 pad.classList.add('active');
+                
+                // Set timeout for note release
+                touchTimeout = setTimeout(() => {
+                    audioEngine.stopNote();
+                    pad.classList.remove('active');
+                }, 500);
             }
-        });
+        }, { passive: false });
 
         pad.addEventListener('touchend', (e) => {
             e.preventDefault();
+            clearTimeout(touchTimeout);
+            if (audioEngine?.initialized) {
+                audioEngine.stopNote();
+            }
             pad.classList.remove('active');
-        });
+        }, { passive: false });
+
+        pad.addEventListener('touchcancel', (e) => {
+            e.preventDefault();
+            clearTimeout(touchTimeout);
+            if (audioEngine?.initialized) {
+                audioEngine.stopNote();
+            }
+            pad.classList.remove('active');
+        }, { passive: false });
     });
 
-    // Handle beat buttons
+    // Handle beat buttons with better mobile handling
     const beatButtons = document.querySelectorAll('.beat-btn');
     beatButtons.forEach(btn => {
+        let touchTimeout;
+        
         btn.addEventListener('touchstart', (e) => {
             e.preventDefault();
             const drum = btn.dataset.drum;
-            if (drum && audioEngine.drums[drum]) {
+            if (drum && audioEngine?.drums?.[drum]) {
                 audioEngine.drums[drum].start();
                 btn.classList.add('active');
+                
+                // Set timeout for button release
+                touchTimeout = setTimeout(() => {
+                    btn.classList.remove('active');
+                }, 200);
             }
-        });
+        }, { passive: false });
 
         btn.addEventListener('touchend', (e) => {
             e.preventDefault();
+            clearTimeout(touchTimeout);
             btn.classList.remove('active');
-        });
-    });
+        }, { passive: false });
 
-    // Handle quick beat patterns
-    const quickBeatButtons = document.querySelectorAll('.quick-beat-btn');
-    quickBeatButtons.forEach(btn => {
-        btn.addEventListener('touchstart', (e) => {
+        btn.addEventListener('touchcancel', (e) => {
             e.preventDefault();
-            const pattern = btn.dataset.pattern;
-            if (pattern) {
-                audioEngine.changePattern(pattern);
-                quickBeatButtons.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-            }
-        });
+            clearTimeout(touchTimeout);
+            btn.classList.remove('active');
+        }, { passive: false });
     });
 
-    // Handle touch events for pattern buttons
-    const patternButtons = document.querySelectorAll('.pattern-btn');
-    patternButtons.forEach(btn => {
-        btn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const pattern = btn.dataset.pattern;
-            if (pattern) {
-                audioEngine.changePattern(pattern);
-                patternButtons.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-            }
-        });
-    });
-
-    // Handle touch events for sliders
+    // Handle touch events for sliders with better mobile handling
     const sliders = document.querySelectorAll('input[type="range"]');
     sliders.forEach(slider => {
+        let lastValue = slider.value;
+        let touchStartX = 0;
+        let touchStartY = 0;
+        
         slider.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            const value = e.touches[0].clientX;
-            const rect = slider.getBoundingClientRect();
-            const percentage = (value - rect.left) / rect.width;
-            slider.value = percentage * (slider.max - slider.min) + slider.min;
-            slider.dispatchEvent(new Event('input'));
-        });
+            const touch = e.touches[0];
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+            lastValue = slider.value;
+        }, { passive: false });
 
         slider.addEventListener('touchmove', (e) => {
             e.preventDefault();
-            const value = e.touches[0].clientX;
+            const touch = e.touches[0];
             const rect = slider.getBoundingClientRect();
-            const percentage = Math.max(0, Math.min(1, (value - rect.left) / rect.width));
-            slider.value = percentage * (slider.max - slider.min) + slider.min;
+            const isHorizontal = rect.width > rect.height;
+            
+            let newValue;
+            if (isHorizontal) {
+                const deltaX = touch.clientX - touchStartX;
+                const percentage = deltaX / rect.width;
+                newValue = parseFloat(lastValue) + (percentage * (slider.max - slider.min));
+            } else {
+                const deltaY = touch.clientY - touchStartY;
+                const percentage = -deltaY / rect.height;
+                newValue = parseFloat(lastValue) + (percentage * (slider.max - slider.min));
+            }
+            
+            // Clamp value to min/max
+            newValue = Math.max(slider.min, Math.min(slider.max, newValue));
+            slider.value = newValue;
             slider.dispatchEvent(new Event('input'));
-        });
+        }, { passive: false });
     });
 
-    // Add gesture controls
+    // Add improved gesture controls
     let touchStartX = 0;
     let touchStartY = 0;
     let lastTouchX = 0;
     let lastTouchY = 0;
     let isGestureActive = false;
+    let gestureTimeout;
 
     document.addEventListener('touchstart', (e) => {
         touchStartX = e.touches[0].clientX;
@@ -463,6 +494,9 @@ function initializeMobileControls() {
         lastTouchX = touchStartX;
         lastTouchY = touchStartY;
         isGestureActive = true;
+        
+        // Clear any existing timeout
+        clearTimeout(gestureTimeout);
     }, { passive: true });
 
     document.addEventListener('touchmove', (e) => {
@@ -500,6 +534,10 @@ function initializeMobileControls() {
 
     document.addEventListener('touchend', () => {
         isGestureActive = false;
+        // Add a small delay before allowing new gestures
+        gestureTimeout = setTimeout(() => {
+            isGestureActive = true;
+        }, 100);
     }, { passive: true });
 
     // Add pinch-to-zoom for particle count
@@ -920,4 +958,22 @@ function initializeDJControls() {
             btn.classList.toggle('active');
         });
     });
+}
+
+// Update fractal zoom
+function updateFractalZoom(value) {
+    if (visualizer) {
+        visualizer.updateFractalParams({
+            zoom: parseFloat(value)
+        });
+    }
+}
+
+// Update tunnel speed
+function updateTunnelSpeed(value) {
+    if (visualizer) {
+        visualizer.updateTunnelParams({
+            rotationSpeed: parseFloat(value)
+        });
+    }
 } 
