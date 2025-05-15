@@ -344,22 +344,19 @@ class AudioEngine {
         }
     }
 
-    playNote(note) {
-        if (!this.initialized || !this.currentSynth) {
-            console.warn("Audio engine not initialized yet");
-            return;
-        }
+    playNote(note, velocity = 0.8) {
+        if (!this.initialized || !this.synths?.basic) return;
         try {
-            this.currentSynth.triggerAttackRelease(note, "8n");
+            this.synths.basic.triggerAttackRelease(note, "8n", undefined, velocity);
         } catch (error) {
             console.error("Error playing note:", error);
         }
     }
 
     stopNote() {
-        if (!this.initialized || !this.currentSynth) return;
+        if (!this.initialized || !this.synths?.basic) return;
         try {
-            this.currentSynth.releaseAll();
+            this.synths.basic.releaseAll();
         } catch (error) {
             console.error("Error stopping note:", error);
         }

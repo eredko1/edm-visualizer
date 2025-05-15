@@ -8,24 +8,37 @@ document.addEventListener('DOMContentLoaded', () => {
         isInitializing = true;
         
         try {
+            // Show loading indicator
+            const loadingIndicator = document.getElementById('loading-indicator');
+            if (loadingIndicator) {
+                loadingIndicator.innerHTML = '<div class="loading">Initializing audio...</div>';
+            }
+            
+            // Create and initialize audio engine
             audioEngine = new AudioEngine();
             await audioEngine.initializeAudio();
             
             // Initialize visualizer after audio engine is ready
-            visualizer = new Visualizer();
-            await visualizer.initialize();
-            
-            // Connect audio engine to visualizer
-            audioEngine.mixer.connect(visualizer.analyser);
-            
-            // Remove loading indicator
-            const loadingIndicator = document.getElementById('loading-indicator');
-            if (loadingIndicator) {
-                loadingIndicator.remove();
+            if (audioEngine.initialized) {
+                visualizer = new Visualizer();
+                await visualizer.initialize();
+                
+                // Connect audio engine to visualizer
+                if (audioEngine.mixer && visualizer.analyser) {
+                    audioEngine.mixer.connect(visualizer.analyser);
+                }
+                
+                // Remove loading indicator
+                if (loadingIndicator) {
+                    loadingIndicator.remove();
+                }
+                
+                // Enable controls
+                const controls = document.getElementById('controls');
+                if (controls) {
+                    controls.style.display = 'block';
+                }
             }
-            
-            // Enable controls
-            document.getElementById('controls').style.display = 'block';
         } catch (error) {
             console.error('Error initializing audio:', error);
             const loadingIndicator = document.getElementById('loading-indicator');
@@ -51,19 +64,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Initialize on user interaction
-    function initOnInteraction() {
+    function initOnInteraction(e) {
+        e.preventDefault();
         if (!audioEngine || !audioEngine.initialized) {
             initAudio();
         }
     }
 
     // Add event listeners for user interaction
-    document.addEventListener('click', initOnInteraction);
-    document.addEventListener('touchstart', initOnInteraction);
+    document.addEventListener('click', initOnInteraction, { once: true });
+    document.addEventListener('touchstart', initOnInteraction, { once: true });
 
     // Mouse and touch event handlers with error handling
     function handleMouseMove(e) {
-        if (!audioEngine?.initialized || !audioEngine?.synth) return;
+        if (!audioEngine?.initialized || !audioEngine?.synths?.basic) return;
         
         try {
             const rect = canvas.getBoundingClientRect();
@@ -75,18 +89,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const velocity = 1 - (y / canvas.height);
             
             // Update synth parameters
-            audioEngine.synth.volume.value = Tone.gainToDb(velocity);
-            audioEngine.synth.filter.frequency.value = Math.pow(2, note / 12) * 440;
-            
-            // Trigger note
-            audioEngine.playNote(note, velocity);
+            if (audioEngine.synths.basic) {
+                audioEngine.synths.basic.volume.value = Tone.gainToDb(velocity);
+                audioEngine.playNote(note, velocity);
+            }
         } catch (error) {
             console.error('Error in mouse move handler:', error);
         }
     }
 
     function handleTouchMove(e) {
-        if (!audioEngine?.initialized || !audioEngine?.synth) return;
+        if (!audioEngine?.initialized || !audioEngine?.synths?.basic) return;
         
         try {
             e.preventDefault();
@@ -100,11 +113,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const velocity = 1 - (y / canvas.height);
             
             // Update synth parameters
-            audioEngine.synth.volume.value = Tone.gainToDb(velocity);
-            audioEngine.synth.filter.frequency.value = Math.pow(2, note / 12) * 440;
-            
-            // Trigger note
-            audioEngine.playNote(note, velocity);
+            if (audioEngine.synths.basic) {
+                audioEngine.synths.basic.volume.value = Tone.gainToDb(velocity);
+                audioEngine.playNote(note, velocity);
+            }
         } catch (error) {
             console.error('Error in touch move handler:', error);
         }
