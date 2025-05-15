@@ -5,11 +5,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize audio engine after user interaction
     const initAudio = async () => {
         try {
+            // Create and initialize audio engine
             audioEngine = new AudioEngine();
+            
+            // Wait for audio engine to be ready
+            await new Promise((resolve) => {
+                const checkReady = setInterval(() => {
+                    if (audioEngine && audioEngine.initialized) {
+                        clearInterval(checkReady);
+                        resolve();
+                    }
+                }, 100);
+            });
+
+            // Create visualizer after audio is ready
             visualizer = new Visualizer();
             
             // Connect audio engine to visualizer
-            audioEngine.synth.connect(visualizer.analyser);
+            audioEngine.mixer.connect(visualizer.analyser);
             
             // Initialize controls after audio is ready
             initializeControls();
@@ -17,109 +30,43 @@ document.addEventListener('DOMContentLoaded', () => {
             initializeKeyboardControls();
             initializeHelpPanel();
             initializeMobileControls();
+            initializeDJControls();
             
-            // Add auto-generator button
-            const autoGeneratorBtn = document.createElement('button');
-            autoGeneratorBtn.className = 'auto-generator-btn';
-            autoGeneratorBtn.innerHTML = '<i class="fas fa-magic"></i> Auto Generate';
-            document.body.appendChild(autoGeneratorBtn);
-            
-            autoGeneratorBtn.addEventListener('click', () => {
-                if (audioEngine) {
-                    audioEngine.toggleAutoGenerator();
-                    autoGeneratorBtn.classList.toggle('active');
-                }
-            });
-
-            // Add minimize all button
-            const minimizeAllBtn = document.createElement('button');
-            minimizeAllBtn.className = 'minimize-all-btn';
-            minimizeAllBtn.innerHTML = '<i class="fas fa-compress"></i>';
-            document.body.appendChild(minimizeAllBtn);
-            
-            minimizeAllBtn.addEventListener('click', () => {
-                const controlsPanel = document.querySelector('.controls-panel');
-                const mobileBeatPad = document.querySelector('.mobile-beat-pad');
-                const helpContent = document.querySelector('.help-content');
-                
-                controlsPanel.classList.toggle('minimized');
-                mobileBeatPad.classList.toggle('minimized');
-                helpContent.classList.remove('visible');
-                
-                minimizeAllBtn.classList.toggle('active');
-            });
-
-            // Add visualization presets
-            const vizPresets = [
-                { name: 'Pulse', type: 'particles', color: 'neon', speed: 1.2 },
-                { name: 'Wave', type: 'waves', color: 'rainbow', speed: 0.8 },
-                { name: 'Matrix', type: 'matrix', color: 'monochrome', speed: 1 },
-                { name: 'Vortex', type: 'vortex', color: 'pastel', speed: 1.5 }
-            ];
-
-            const vizPresetBtn = document.createElement('button');
-            vizPresetBtn.className = 'viz-preset-btn';
-            vizPresetBtn.innerHTML = '<i class="fas fa-palette"></i> Visuals';
-            document.body.appendChild(vizPresetBtn);
-
-            const vizPresetMenu = document.createElement('div');
-            vizPresetMenu.className = 'viz-preset-menu';
-            vizPresetBtn.appendChild(vizPresetMenu);
-
-            vizPresets.forEach(preset => {
-                const presetBtn = document.createElement('button');
-                presetBtn.className = 'preset-btn';
-                presetBtn.textContent = preset.name;
-                presetBtn.addEventListener('click', () => {
-                    if (visualizer) {
-                        visualizer.updateVisualizationType(preset.type);
-                        visualizer.updateColorScheme(preset.color);
-                        visualizer.updateVisualizationSpeed(preset.speed);
-                    }
-                });
-                vizPresetMenu.appendChild(presetBtn);
-            });
-
-            vizPresetBtn.addEventListener('click', () => {
-                vizPresetMenu.classList.toggle('visible');
-            });
-
-            // Close preset menu when clicking outside
-            document.addEventListener('click', (e) => {
-                if (!vizPresetBtn.contains(e.target)) {
-                    vizPresetMenu.classList.remove('visible');
-                }
-            });
+            // Remove loading indicator
+            const loadingIndicator = document.querySelector('.loading-indicator');
+            if (loadingIndicator) {
+                loadingIndicator.remove();
+            }
 
             console.log("Audio and visualizer initialized successfully");
         } catch (error) {
             console.error("Error initializing audio:", error);
+            // Show error message to user
+            const loadingIndicator = document.querySelector('.loading-indicator');
+            if (loadingIndicator) {
+                loadingIndicator.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error loading audio. Click to retry.';
+                loadingIndicator.style.cursor = 'pointer';
+                loadingIndicator.onclick = initAudio;
+            }
         }
     };
 
     // Initialize on first user interaction
     const initOnInteraction = () => {
+        // Add loading indicator
+        const loadingIndicator = document.createElement('div');
+        loadingIndicator.className = 'loading-indicator';
+        loadingIndicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+        document.body.appendChild(loadingIndicator);
+
         initAudio();
         document.removeEventListener('click', initOnInteraction);
         document.removeEventListener('touchstart', initOnInteraction);
     };
 
+    // Add click and touch listeners for initialization
     document.addEventListener('click', initOnInteraction, { once: true });
     document.addEventListener('touchstart', initOnInteraction, { once: true });
-
-    // Add loading indicator
-    const loadingIndicator = document.createElement('div');
-    loadingIndicator.className = 'loading-indicator';
-    loadingIndicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
-    document.body.appendChild(loadingIndicator);
-
-    // Remove loading indicator when audio is ready
-    const checkAudioReady = setInterval(() => {
-        if (audioEngine && audioEngine.initialized) {
-            loadingIndicator.remove();
-            clearInterval(checkAudioReady);
-        }
-    }, 100);
 
     // Mouse interaction for sound generation
     document.addEventListener('mousemove', (e) => {
@@ -948,12 +895,4 @@ function initializeDJControls() {
             btn.classList.toggle('active');
         });
     });
-}
-
-// Initialize DJ controls after audio is ready
-const checkAudioReady = setInterval(() => {
-    if (audioEngine && audioEngine.initialized) {
-        initializeDJControls();
-        clearInterval(checkAudioReady);
-    }
-}, 100); 
+} 

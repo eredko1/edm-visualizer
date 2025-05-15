@@ -68,6 +68,7 @@ class Visualizer {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
         const waveform = this.analyser.getValue();
+        if (!waveform || waveform.length === 0) return;
         
         switch (this.vizType) {
             case 'particles':
