@@ -16,28 +16,56 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Create and initialize audio engine
             audioEngine = new AudioEngine();
-            await audioEngine.initializeAudio();
             
-            // Initialize visualizer after audio engine is ready
-            if (audioEngine.initialized) {
-                visualizer = new Visualizer();
-                await visualizer.initialize();
+            // Add mobile-specific audio initialization
+            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                // Create a temporary button for iOS/Android audio context initialization
+                const tempButton = document.createElement('button');
+                tempButton.style.display = 'none';
+                document.body.appendChild(tempButton);
                 
-                // Connect audio engine to visualizer
-                if (audioEngine.mixer && visualizer.analyser) {
-                    audioEngine.mixer.connect(visualizer.analyser);
-                }
+                // Initialize audio on first touch
+                const initOnFirstTouch = async (e) => {
+                    e.preventDefault();
+                    await audioEngine.initializeAudio();
+                    tempButton.remove();
+                    document.removeEventListener('touchstart', initOnFirstTouch);
+                    
+                    // Initialize visualizer after audio is ready
+                    if (audioEngine.initialized) {
+                        visualizer = new Visualizer();
+                        await visualizer.initialize();
+                        
+                        if (audioEngine.mixer && visualizer.analyser) {
+                            audioEngine.mixer.connect(visualizer.analyser);
+                        }
+                    }
+                };
                 
-                // Remove loading indicator
-                if (loadingIndicator) {
-                    loadingIndicator.remove();
-                }
+                document.addEventListener('touchstart', initOnFirstTouch, { once: true });
+            } else {
+                // Desktop initialization
+                await audioEngine.initializeAudio();
                 
-                // Enable controls
-                const controls = document.getElementById('controls');
-                if (controls) {
-                    controls.style.display = 'block';
+                if (audioEngine.initialized) {
+                    visualizer = new Visualizer();
+                    await visualizer.initialize();
+                    
+                    if (audioEngine.mixer && visualizer.analyser) {
+                        audioEngine.mixer.connect(visualizer.analyser);
+                    }
                 }
+            }
+            
+            // Remove loading indicator
+            if (loadingIndicator) {
+                loadingIndicator.remove();
+            }
+            
+            // Enable controls
+            const controls = document.getElementById('controls');
+            if (controls) {
+                controls.style.display = 'block';
             }
         } catch (error) {
             console.error('Error initializing audio:', error);
@@ -103,14 +131,19 @@ document.addEventListener('DOMContentLoaded', () => {
         
         try {
             e.preventDefault();
+            e.stopPropagation(); // Prevent event bubbling
+            
             const touch = e.touches[0];
             const rect = canvas.getBoundingClientRect();
             const x = touch.clientX - rect.left;
             const y = touch.clientY - rect.top;
             
+            // Add touch pressure support for devices that support it
+            const pressure = touch.force || 1;
+            
             // Map touch position to musical parameters
             const note = Math.floor((x / canvas.width) * 24) + 48;
-            const velocity = 1 - (y / canvas.height);
+            const velocity = Math.min(1, (1 - (y / canvas.height)) * pressure);
             
             // Update synth parameters
             if (audioEngine.synths.basic) {
@@ -142,9 +175,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Add event listeners with error handling
     canvas.addEventListener('mousemove', handleMouseMove);
-    canvas.addEventListener('touchmove', handleTouchMove);
+    canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        handleTouchMove(e);
+    }, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
     canvas.addEventListener('mouseup', handleMouseUp);
-    canvas.addEventListener('touchend', handleTouchEnd);
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+    canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
 
     // Handle window resize
     window.addEventListener('resize', () => {

@@ -288,20 +288,135 @@ body {
 @media (max-width: 768px) {
     .controls-panel {
         padding: 10px;
+        transform: translateY(calc(100% - 50px));
     }
 
     .control-section {
         margin-bottom: 10px;
+        padding: 10px;
     }
 
-    .beat-pad {
+    .section-header h3 {
+        font-size: 1em;
+    }
+
+    .control-group label {
+        font-size: 0.8em;
+    }
+
+    .beat-patterns {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .pattern-btn {
+        padding: 6px 8px;
+        font-size: 0.8em;
+    }
+
+    .mobile-beat-pad {
+        bottom: 10px;
+        padding: 10px;
+        width: 95%;
+        max-width: 500px;
+    }
+
+    .mobile-beat-pad .beat-pad {
         width: 40px;
         height: 40px;
         font-size: 0.8em;
     }
 
-    .help-content {
-        right: -100px;
+    .mobile-controls-toggle {
+        width: 50px;
+        height: 50px;
+        font-size: 1.2em;
+        bottom: 70px;
+        right: 10px;
+    }
+
+    .beat-buttons {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 5px;
+        margin-top: 10px;
+    }
+
+    .quick-beats {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 5px;
+        margin-top: 10px;
+    }
+
+    .beat-btn, .quick-beat-btn {
+        padding: 8px;
+        font-size: 0.8em;
+    }
+
+    /* Prevent text selection on mobile */
+    * {
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+    }
+
+    /* Improve touch targets */
+    input[type="range"] {
+        height: 30px;
+        margin: 10px 0;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+        width: 20px;
+        height: 20px;
+    }
+
+    select, button {
+        min-height: 44px;
+    }
+
+    /* Add visual feedback for touch */
+    .beat-pad:active,
+    .beat-btn:active,
+    .quick-beat-btn:active {
+        transform: scale(0.95);
+        opacity: 0.8;
+    }
+
+    /* Improve scrolling in control panels */
+    .section-content {
+        -webkit-overflow-scrolling: touch;
+        max-height: 60vh;
+    }
+
+    /* Add safe area insets for modern iOS devices */
+    @supports (padding: max(0px)) {
+        .controls-panel {
+            padding-bottom: max(10px, env(safe-area-inset-bottom));
+        }
+
+        .mobile-beat-pad {
+            bottom: max(10px, env(safe-area-inset-bottom));
+        }
+
+        .mobile-controls-toggle {
+            bottom: max(70px, calc(70px + env(safe-area-inset-bottom)));
+        }
+    }
+}
+
+/* Add styles for very small screens */
+@media (max-width: 320px) {
+    .mobile-beat-pad .beat-pad {
+        width: 35px;
+        height: 35px;
+        font-size: 0.7em;
+    }
+
+    .beat-btn, .quick-beat-btn {
+        padding: 6px;
+        font-size: 0.7em;
     }
 }
 
